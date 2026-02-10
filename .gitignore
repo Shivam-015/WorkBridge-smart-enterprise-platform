@@ -1,0 +1,12 @@
+# Python
+venv/
+backend/venv/
+__pycache__/
+*.pyc
+
+# Django
+db.sqlite3
+.env
+
+# VS Code
+.vscode/
