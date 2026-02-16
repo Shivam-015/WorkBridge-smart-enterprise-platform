@@ -1,0 +1,72 @@
+/* ---------------------------
+   Custom Global Reset
+---------------------------- */
+
+/* Remove default margin & padding */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Root settings */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: theme('fontFamily.sans');
+  background-color: #f9fafb; /* Tailwind gray-50 */
+  color: #111827; /* Tailwind gray-900 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Remove default button styles */
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Remove input autofill ugly yellow background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px white inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Remove default list styles */
+ul,
+ol {
+  list-style: none;
+}
+
+/* Remove link underline */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1; /* gray-300 */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8; /* gray-400 */
+}
+
+/* Image default behavior */
+img {
+  max-width: 100%;
+  display: block;
+}
