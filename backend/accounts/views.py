@@ -79,3 +79,5 @@ class CreateUserView(APIView):
             )
 
         return Response(serializer.errors, status=400)
+
+
