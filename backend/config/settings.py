@@ -40,7 +40,11 @@ INSTALLED_APPS = [
     'core',
     'rest_framework',
     'accounts',
-    'corsheaders'
+    'corsheaders',
+    'dashboard',
+    'clients',
+    'tasks',
+    'projects'
 ]
 
 MIDDLEWARE = [
