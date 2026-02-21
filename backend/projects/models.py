@@ -1,6 +1,6 @@
 from django.db import models
 from accounts.models import User
-
+from companies.models import Company
 
 class Project(models.Model):
 
@@ -11,7 +11,7 @@ class Project(models.Model):
     ]
 
     company = models.ForeignKey(
-        "accounts.Company",
+        "companies.Company",
         on_delete=models.CASCADE,
         related_name="projects"
     )
