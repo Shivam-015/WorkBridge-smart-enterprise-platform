@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-
+from companies.models import Company
 class Task(models.Model):
 
     STATUS_CHOICES = (
@@ -31,7 +31,7 @@ class Task(models.Model):
     )
 
     company = models.ForeignKey(
-        'accounts.Company',
+        'companies.Company',
         on_delete=models.CASCADE
     )
 
