@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
-from companies.models import Company
+from companies.models import Company,CompanyUser
+
 class Task(models.Model):
 
     STATUS_CHOICES = (
@@ -19,19 +20,19 @@ class Task(models.Model):
     description = models.TextField()
 
     assigned_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='assigned_tasks'
-    )
+    CompanyUser,
+    on_delete=models.CASCADE,
+    related_name='assigned_tasks'
+)
 
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        CompanyUser,
         on_delete=models.CASCADE,
-        related_name='created_tasks'
+        related_name="created_tasks"
     )
 
     company = models.ForeignKey(
-        'companies.Company',
+        Company,
         on_delete=models.CASCADE
     )
 
@@ -48,6 +49,26 @@ class Task(models.Model):
     )
 
     due_date = models.DateField(null=True, blank=True)
+
+    attachment = models.FileField(
+        upload_to='task_files/',
+        null=True,
+        blank=True
+    )
+
+    image = models.ImageField(
+        upload_to='task_images/',
+        null=True,
+        blank=True
+    )
+
+    reference_link = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True
+    )
+
+    progress = models.PositiveSmallIntegerField(default=0)  # 0 to 100
 
     created_at = models.DateTimeField(auto_now_add=True)
 
