@@ -1,5 +1,5 @@
 from django.db import models
-from accounts.models import Company
+from companies.models import Company
 
 class Client(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
