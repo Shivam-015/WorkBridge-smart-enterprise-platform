@@ -3,8 +3,10 @@ from django.db.models import Count, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth import get_user_model
 
-from accounts.models import User
+User = get_user_model()
+
 from projects.models import Project
 from tasks.models import Task
 from clients.models import Client

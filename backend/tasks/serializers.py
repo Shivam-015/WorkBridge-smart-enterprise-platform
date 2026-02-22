@@ -1,36 +1,46 @@
 from rest_framework import serializers
 from .models import Task
-from django.contrib.auth import get_user_model
+from companies.models import CompanyUser
 
-User = get_user_model()
 
 class TaskSerializer(serializers.ModelSerializer):
 
-    assigned_to = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all()
-    )
-
     class Meta:
         model = Task
-        fields = '__all__'
+        exclude = ['progress']
         read_only_fields = ['created_by', 'company']
 
-    def validate(self, data):
-        request = self.context['request']
-        user = request.user
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        # Only ADMIN, HR, MANAGER can create task
-        if user.role not in ['ADMIN', 'HR', 'MANAGER']:
-            raise serializers.ValidationError(
-                "You are not allowed to create tasks."
-            )
+        request = self.context.get("request")
+
+        if request and request.user.is_authenticated:
+            company_user = CompanyUser.objects.filter(
+                user=request.user
+            ).first()
+
+            if company_user:
+                company = company_user.company
+
+                #  Only employees (level >20 and <70) in assigned_to
+                self.fields["assigned_to"].queryset = CompanyUser.objects.filter(
+                    company=company,
+                    role__level__gt=20,
+                    role__level__lt=70
+                )
+
+    def validate(self, data):
+        request = self.context.get("request")
+        company_user = CompanyUser.objects.filter(
+            user=request.user
+        ).first()
+
+        if not company_user:
+            raise serializers.ValidationError("Company not found")
+
+        # Only level >=70 can create
+        if company_user.role.level < 70:
+            raise serializers.ValidationError("You are not allowed to create tasks.")
 
         return data
-
-    def create(self, validated_data):
-        request = self.context['request']
-
-        validated_data['created_by'] = request.user
-        validated_data['company'] = request.user.company
-
-        return super().create(validated_data)
