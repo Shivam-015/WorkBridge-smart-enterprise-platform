@@ -10,6 +10,7 @@ class Company(models.Model):
     size = models.CharField(max_length=50)
     address = models.TextField(blank=True, null=True)
     logo = models.ImageField(upload_to='company_logos/', blank=True, null=True)
+    last_user_number = models.IntegerField(default=0)
 
     def __str__(self):
         return self.name
@@ -82,6 +83,21 @@ class CompanyUser(models.Model):
     )
 
     invite_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    account_no = models.IntegerField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.account_no:
+            # increment company counter
+            self.account_no = self.company.last_user_number + 1
+            self.company.last_user_number = self.account_no
+            self.company.save()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.email if self.email else self.name
+        if self.email:
+            return self.email
+        if self.name:
+         return self.name
+        if self.user:
+            return self.user.email
+        return "CompanyUser"
