@@ -1,12 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CompanyViewSet,CreateUserView,SetPasswordView
+from .views import CompanyViewSet,CreateUserView,RegistrationView,SetPasswordView
 
 router = DefaultRouter()
 router.register(r'companies', CompanyViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path("register/", RegistrationView.as_view()),
     path("create-user/", CreateUserView.as_view()),  
     path("set-password/<uuid:token>/", SetPasswordView.as_view())  
 ]
