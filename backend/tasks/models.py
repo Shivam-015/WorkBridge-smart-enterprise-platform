@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from companies.models import Company,CompanyUser
+from django.core.validators import MaxValueValidator
 
 class Task(models.Model):
 
@@ -68,7 +69,12 @@ class Task(models.Model):
         blank=True
     )
 
-    progress = models.PositiveSmallIntegerField(default=0)  # 0 to 100
+   
+
+    progress = models.PositiveSmallIntegerField(
+    default=0,
+    validators=[MaxValueValidator(100)]
+)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -83,7 +83,11 @@ class CreateUserView(APIView):
 
 
 
+from rest_framework.permissions import AllowAny
+
 class SetPasswordView(APIView):
+    
+    permission_classes = [AllowAny]
 
     def post(self, request, token):
 
