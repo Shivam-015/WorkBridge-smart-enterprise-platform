@@ -1,62 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import CompanyUser, Role, Company
+from django.db import transaction
 
 User = get_user_model()
-
-
-# =========================
-# REGISTRATION
-# =========================
-
-class RegistrationSerializer(serializers.Serializer):
-    company_name = serializers.CharField(max_length=255)
-    company_email = serializers.EmailField()
-    company_phone = serializers.CharField(max_length=15)
-    industry_type = serializers.CharField(max_length=100)
-    company_size = serializers.CharField(max_length=50)
-
-    admin_name = serializers.CharField(max_length=150)
-    admin_email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=6)
-
-    def create(self, validated_data):
-
-        # Create Company
-        company = Company.objects.create(
-            name=validated_data['company_name'],
-            email=validated_data['company_email'],
-            phone=validated_data['company_phone'],
-            industry=validated_data['industry_type'],
-            size=validated_data['company_size']
-        )
-
-        # Create Global User
-        user = User.objects.create_user(
-            username=validated_data['admin_email'],
-            email=validated_data['admin_email'],
-            password=validated_data['password'],
-            first_name=validated_data['admin_name']
-        )
-
-        # Create OWNER Role
-        owner_role = Role.objects.create(
-            name="OWNER",
-            company=company
-        )
-
-        # Link User to Company
-        CompanyUser.objects.create(
-            user=user,
-            company=company,
-            role=owner_role,
-            name=user.first_name,
-            email=user.email,
-            status="ACTIVE"
-        )
-
-        return user
-
 
 # =========================
 # COMPANY SERIALIZER
@@ -66,6 +13,73 @@ class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = '__all__'
+
+
+# =========================
+# REGISTRATION
+# =========================
+
+class RegistrationSerializer(serializers.Serializer):
+    company = CompanySerializer()
+
+    owner_name = serializers.CharField(max_length=150)
+    owner_email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=6)
+
+    def validate_owner_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                "User with this email already exists."
+            )
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data):
+        company_data = validated_data.pop("company")
+
+        company = Company.objects.create(**company_data)
+
+        #  Create Owner User 
+        user = User.objects.create_user(
+            username=validated_data["owner_email"],
+            email=validated_data["owner_email"],
+            password=validated_data["password"],
+            first_name=validated_data["owner_name"]
+        )
+
+        # Assign Owner to Company (OneToOne)
+        company.owner = user
+        company.save()
+
+        # Create OWNER Role (Full Access)
+        owner_role = Role.objects.create(
+            name="OWNER",
+            company=company,
+            level=100,
+            can_manage_company=True,
+            can_manage_roles=True,
+            can_manage_users=True,
+            can_create_project=True,
+            can_assign_task=True,
+            can_view_all_tasks=True,
+            can_view_team_tasks=True,
+            can_view_assigned_tasks=True,
+            can_update_task_status=True,
+            can_view_project_progress=True,
+        )
+
+        # 5️⃣ Link User to Company
+        CompanyUser.objects.create(
+            user=user,
+            company=company,
+            role=owner_role,
+            name=user.first_name,
+            email=user.email,
+            status="ACTIVE"
+        )
+
+
+        return user
 
 
 # =========================

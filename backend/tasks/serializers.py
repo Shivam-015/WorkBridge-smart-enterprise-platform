@@ -7,7 +7,7 @@ class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Task
-        exclude = ['progress']
+        fields = "__all__"
         read_only_fields = ['created_by', 'company']
 
     def __init__(self, *args, **kwargs):
@@ -23,12 +23,17 @@ class TaskSerializer(serializers.ModelSerializer):
             if company_user:
                 company = company_user.company
 
-                #  Only employees (level >20 and <70) in assigned_to
+                # Only Employees (40–69) assignable
                 self.fields["assigned_to"].queryset = CompanyUser.objects.filter(
                     company=company,
-                    role__level__gt=20,
+                    role__level__gte=40,
                     role__level__lt=70
                 )
+
+                # Client ko progress aur internal fields hide
+                if company_user.role.level == 10:
+                    self.fields.pop("progress", None)
+                    self.fields.pop("assigned_to", None)
 
     def validate(self, data):
         request = self.context.get("request")
@@ -39,8 +44,11 @@ class TaskSerializer(serializers.ModelSerializer):
         if not company_user:
             raise serializers.ValidationError("Company not found")
 
-        # Only level >=70 can create
-        if company_user.role.level < 70:
-            raise serializers.ValidationError("You are not allowed to create tasks.")
+        # CREATE case
+        if self.instance is None:
+            if company_user.role.level < 60:
+                raise serializers.ValidationError(
+                    "You are not allowed to create tasks."
+                )
 
         return data

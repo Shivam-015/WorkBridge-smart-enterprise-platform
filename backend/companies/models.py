@@ -10,6 +10,14 @@ class Company(models.Model):
     size = models.CharField(max_length=50)
     address = models.TextField(blank=True, null=True)
     logo = models.ImageField(upload_to='company_logos/', blank=True, null=True)
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="owned_company"
+    )
+
     last_user_number = models.IntegerField(default=0)
 
     def __str__(self):
@@ -46,8 +54,6 @@ class Role(models.Model):
     def __str__(self):
         return f"{self.name} ({self.company.name})"
 
-
-import uuid
 
 import uuid
 from django.conf import settings
