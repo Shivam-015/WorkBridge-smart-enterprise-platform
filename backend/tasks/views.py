@@ -58,19 +58,22 @@ class TaskViewSet(viewsets.ModelViewSet):
         if not company_user:
             raise PermissionDenied("Company not found")
 
-        role = company_user.role
         task = self.get_object()
 
-        if role.level >= 70:
+    # Manager / HR
+        if company_user.role.level >= 60:
             serializer.save()
             return
 
-        if role.level > 20 and task.assigned_to == company_user:
+    # Employee → only own task update
+        if company_user.role.level >= 40 and task.assigned_to == company_user:
             serializer.save()
             return
 
         raise PermissionDenied("You don't have permission to update this task")
 
+
+    
     def perform_destroy(self, instance):
         company_user = self.get_company_user()
 
@@ -78,3 +81,5 @@ class TaskViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You don't have permission to delete tasks")
 
         instance.delete()
+
+        

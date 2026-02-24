@@ -2,7 +2,7 @@ from django.db import models
 from companies.models import Company
 
 class Client(models.Model):
-    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE , related_name="clients")
     name = models.CharField(max_length=200)
     email = models.EmailField()
     phone = models.CharField(max_length=15)
