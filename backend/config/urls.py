@@ -23,7 +23,8 @@ urlpatterns = [
     path('api/', include('accounts.urls')),
     path('api/',include('dashboard.urls')),
     path('api/', include('tasks.urls')) , 
-    path('api/', include('companies.urls'))
+    path('api/', include('companies.urls')),
+    path('api/', include('projects.urls'))
 
 ]
 
