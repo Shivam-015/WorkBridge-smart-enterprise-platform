@@ -107,3 +107,4 @@ class CompanyUser(models.Model):
         if self.user:
             return self.user.email
         return "CompanyUser"
+
