@@ -1,13 +1,12 @@
-from django.shortcuts import render
-from .serializers import CreateUserSerializer
-from rest_framework import viewsets
-from .models import Company,CompanyUser
-from .serializers import CompanySerializer,RegistrationSerializer
+from rest_framework import viewsets,status
+from .models import Company,CompanyUser,Role
+from .serializers import CompanySerializer,RegistrationSerializer,RoleSerializer,CreateUserSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
 from rest_framework.views import APIView
 from django.core.mail import send_mail
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.exceptions import PermissionDenied
 
 
 #REGISTRATION view
@@ -110,3 +109,31 @@ class SetPasswordView(APIView):
         company_user.save()
 
         return Response({"message": "Password set successfully"}, status=200)
+
+
+
+class RoleViewSet(ModelViewSet):
+
+    serializer_class = RoleSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Role.objects.filter(
+            company=self.request.user.companyuser.company
+        )
+
+    def perform_create(self, serializer):
+
+        company_user = self.request.user.companyuser
+
+        # Only if can manage roles
+        if not company_user.role.can_manage_roles:
+            raise PermissionDenied("You cannot create roles")
+
+        new_role = serializer.save(company=company_user.company)
+
+        # LEVEL HIERARCHY CHECK
+        if new_role.level >= company_user.role.level:
+            raise PermissionDenied(
+                "Cannot create role equal or higher than your authority"
+            )
