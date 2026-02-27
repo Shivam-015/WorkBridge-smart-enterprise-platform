@@ -5,7 +5,6 @@ from rest_framework.exceptions import PermissionDenied
 
 from .models import Project
 from .serializers import ProjectSerializer
-from companies.models import CompanyUser
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -56,7 +55,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         return Response({"message": "Client assigned successfully"})
 
-    # 🔹 Soft Delete (optional instead of real delete)
+    # 🔹 Soft Delete 
     @action(detail=True, methods=["patch"])
     def deactivate(self, request, pk=None):
         project = self.get_object()
@@ -64,3 +63,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         project.save()
 
         return Response({"message": "Project deactivated"})
+
+
+    # update project
