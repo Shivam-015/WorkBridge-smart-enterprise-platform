@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'accounts',
     'corsheaders',
     'dashboard',
-    'clients',
     'tasks',
     'projects',
     'companies'

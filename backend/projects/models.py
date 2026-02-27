@@ -23,11 +23,11 @@ class Project(models.Model):
     )
 
     client = models.ForeignKey(
-        "clients.Client",
+        "companies.CompanyUser",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="projects"
+        related_name="client_projects"
     )
 
     manager = models.ForeignKey(

@@ -141,3 +141,11 @@ class CreateUserSerializer(serializers.Serializer):
         )
 
         return company_user
+
+# role model 
+class RoleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Role
+        fields = "__all__"
+        read_only_fields = ("level", "company")
