@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings
 from companies.models import Company,CompanyUser
 from django.core.validators import MaxValueValidator
 

@@ -11,11 +11,13 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
+    # task assigned to whom
     def get_company_user(self):
         return CompanyUser.objects.filter(
             user=self.request.user
         ).first()
 
+    # task details
     def get_queryset(self):
         company_user = self.get_company_user()
 
@@ -38,6 +40,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         return Task.objects.none()
 
+    # create task
     def perform_create(self, serializer):
         company_user = self.get_company_user()
 
@@ -52,6 +55,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             company=company_user.company
         )
 
+    # update task
     def perform_update(self, serializer):
         company_user = self.get_company_user()
 
@@ -60,12 +64,12 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         task = self.get_object()
 
-    # Manager / HR
+        # Manager / HR
         if company_user.role.level >= 60:
             serializer.save()
             return
 
-    # Employee → only own task update
+        # Employee → only own task update
         if company_user.role.level >= 40 and task.assigned_to == company_user:
             serializer.save()
             return
@@ -73,7 +77,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         raise PermissionDenied("You don't have permission to update this task")
 
 
-    
+    # delete(soft delete)
     def perform_destroy(self, instance):
         company_user = self.get_company_user()
 

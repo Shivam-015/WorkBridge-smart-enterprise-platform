@@ -1,7 +1,7 @@
 from rest_framework import viewsets,status
 from .models import Company,CompanyUser,Role
-from .serializers import CompanySerializer,RegistrationSerializer,RoleSerializer,CreateUserSerializer
-from rest_framework.permissions import IsAuthenticated
+from .serializers import CompanySerializer,RegistrationSerializer,RoleSerializer,CreateUserSerializer , CurrentUserSerializer
+from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.core.mail import send_mail
@@ -82,8 +82,6 @@ class CreateUserView(APIView):
 
 
 
-from rest_framework.permissions import AllowAny
-
 class SetPasswordView(APIView):
     
     permission_classes = [AllowAny]
@@ -137,3 +135,11 @@ class RoleViewSet(ModelViewSet):
             raise PermissionDenied(
                 "Cannot create role equal or higher than your authority"
             )
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        company_user = request.user.companyuser
+        serializer = CurrentUserSerializer(company_user)
+        return Response(serializer.data)
