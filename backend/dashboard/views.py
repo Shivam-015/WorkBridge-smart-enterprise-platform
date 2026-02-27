@@ -4,12 +4,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 
 User = get_user_model()
 
 from projects.models import Project
 from tasks.models import Task
-from clients.models import Client
 
 
 class AdminDashboardView(APIView):
@@ -36,7 +36,7 @@ class AdminDashboardView(APIView):
 
         total_users = User.objects.filter(company=company).count()
         total_projects = Project.objects.filter(company=company).count()
-        total_clients = Client.objects.filter(company=company).count()
+        # total_clients = Client.objects.filter(company=company).count()
         total_tasks = tasks.count()
 
         completed_tasks = tasks.filter(status="COMPLETED").count()
@@ -48,7 +48,7 @@ class AdminDashboardView(APIView):
         summary = {
             "total_users": total_users,
             "total_projects": total_projects,
-            "total_clients": total_clients,
+            # "total_clients": total_clients,
             "total_tasks": total_tasks,
             "completed_tasks": completed_tasks,
             "pending_tasks": pending_tasks
@@ -136,4 +136,36 @@ class AdminDashboardView(APIView):
             "task_status": task_status,
             "overdue_tasks": overdue_tasks,
             "recent_activity": recent_activity
+        })
+
+
+class ClientDashboardView(APIView):
+
+    def get(self, request):
+
+        try:
+            company_user = request.user.companyuser
+        except:
+            return Response({"error": "Company user not found"}, status=400)
+
+        # Role check
+        if company_user.role.name != "CLIENT":
+            raise PermissionDenied("Only clients allowed")
+
+        projects = company_user.client_projects.all()
+
+        data = []
+
+        for p in projects:
+            data.append({
+                "project_id": p.id,
+                "name": p.name,
+                "progress": p.progress,
+                "status": p.status,
+            })
+
+        return Response({
+            "client_name": company_user.name,
+            "total_projects": projects.count(),
+            "projects": data
         })

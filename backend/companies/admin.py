@@ -39,8 +39,8 @@ class CompanyUserInline(admin.TabularInline):
 # =================================
 @admin.register(Company)
 class CompanyAdmin(admin.ModelAdmin):
-    list_display = ("name", "email", "industry", "size")
-    search_fields = ("name", "email", "industry")
+    list_display = ("name", "email", "size")
+    search_fields = ("name", "email")
     inlines = [RoleInline, CompanyUserInline]
 
 
