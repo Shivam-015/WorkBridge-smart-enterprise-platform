@@ -142,14 +142,21 @@ class CreateUserSerializer(serializers.Serializer):
 
         return company_user
 
-# role model 
+
+# =========================
+# ROLE 
+# ========================= 
+
 class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
         fields = "__all__"
-        read_only_fields = ("level", "company")
+        read_only_fields = ("level",)
 
+# =========================
+# CURRENT USER 
+# =========================
 
 class CurrentUserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
@@ -181,3 +188,15 @@ class CurrentUserSerializer(serializers.ModelSerializer):
             "can_view_project_progress": role.can_view_project_progress,
         }
 
+# =========================
+# SET PASSWORD
+# =========================
+
+class SetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError("Passwords do not match")
+        return data

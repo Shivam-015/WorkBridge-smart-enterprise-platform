@@ -2,10 +2,9 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-
 from .models import Project
 from .serializers import ProjectSerializer
-
+from companies.utils import get_company_user
 
 class ProjectViewSet(viewsets.ModelViewSet):
 
@@ -25,16 +24,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     # 🔹 Create Project
     def perform_create(self, serializer):
-        user = self.request.user
-
-        company_user = user.companyuser_set.first()
-
+        company_user = get_company_user(self.request.user)
+        print(company_user)
         if not company_user:
             raise PermissionDenied("User not linked to any company")
 
         serializer.save(
             company=company_user.company,
-            manager=user
         )
 
     # 🔹 Assign Client to Project
