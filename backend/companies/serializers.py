@@ -142,10 +142,61 @@ class CreateUserSerializer(serializers.Serializer):
 
         return company_user
 
-# role model 
+
+# =========================
+# ROLE 
+# ========================= 
+
 class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
         fields = "__all__"
-        read_only_fields = ("level", "company")
+        read_only_fields = ("level",)
+
+# =========================
+# CURRENT USER 
+# =========================
+
+class CurrentUserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+    permissions = serializers.SerializerMethodField()
+    level = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CompanyUser
+        fields = ["id", "name", "email", "role", "level", "permissions"]
+
+    def get_role(self, obj):
+        return obj.role.name
+
+    def get_level(self, obj):
+        return obj.role.level
+
+    def get_permissions(self, obj):
+        role = obj.role
+        return {
+            "can_manage_company": role.can_manage_company,
+            "can_manage_roles": role.can_manage_roles,
+            "can_manage_users": role.can_manage_users,
+            "can_create_project": role.can_create_project,
+            "can_assign_task": role.can_assign_task,
+            "can_view_all_tasks": role.can_view_all_tasks,
+            "can_view_team_tasks": role.can_view_team_tasks,
+            "can_view_assigned_tasks": role.can_view_assigned_tasks,
+            "can_update_task_status": role.can_update_task_status,
+            "can_view_project_progress": role.can_view_project_progress,
+        }
+
+# =========================
+# SET PASSWORD
+# =========================
+
+class SetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError("Passwords do not match")
+        return data
