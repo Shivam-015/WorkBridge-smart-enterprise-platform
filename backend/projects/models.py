@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings
 
 class Project(models.Model):
 
@@ -31,12 +30,11 @@ class Project(models.Model):
     )
 
     manager = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="managed_projects"
-    )
+    "companies.CompanyUser",
+    on_delete=models.SET_NULL,
+    null=True,
+    related_name="managed_projects"
+)
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)

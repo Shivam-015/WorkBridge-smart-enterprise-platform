@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
+import uuid
+
 
 class Company(models.Model):
     name = models.CharField(max_length=255)
@@ -47,6 +49,12 @@ class Role(models.Model):
     #  Client Access
     can_view_project_progress = models.BooleanField(default=False)
 
+    # hr permissions
+    can_manage_hr = models.BooleanField(default=False)
+    can_approve_leave = models.BooleanField(default=False)
+    can_view_attendance = models.BooleanField(default=False)
+    can_manage_payroll = models.BooleanField(default=False)
+
     # Level Based Hierarchy
     level = models.IntegerField(default=0)
 
@@ -55,34 +63,11 @@ class Role(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
 
-        # Auto level calculation
-        permission_fields = [
-            "can_manage_company",
-            "can_manage_roles",
-            "can_manage_users",
-            "can_create_project",
-            "can_assign_task",
-            "can_view_all_tasks",
-            "can_view_team_tasks",
-            "can_view_assigned_tasks",
-            "can_update_task_status",
-            "can_view_project_progress",
-        ]
-
-        total = 0
-        for field in permission_fields:
-            if getattr(self, field):
-                total += 10
-
-        self.level = total  # auto-set level
-
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.company.name})"
 
-
-import uuid
 
 class CompanyUser(models.Model):
 
@@ -112,7 +97,7 @@ class CompanyUser(models.Model):
         default="INVITED"
     )
 
-    invite_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    invite_token = models.UUIDField(default=uuid.uuid4, unique=True, null=True, blank=True)
     account_no = models.IntegerField(null=True, blank=True)
 
     def save(self, *args, **kwargs):

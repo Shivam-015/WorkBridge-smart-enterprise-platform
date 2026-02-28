@@ -1,171 +1,141 @@
-from django.utils import timezone
-from django.db.models import Count, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth import get_user_model
-from django.core.exceptions import PermissionDenied
-
-User = get_user_model()
-
+from django.utils import timezone
+from companies.utils import get_company_user, get_permission_dict
+from companies.models import CompanyUser
 from projects.models import Project
 from tasks.models import Task
+from hr.models import LeaveRequest
+from datetime import timedelta
+from django.db.models import Q
 
+from .serializers import (
+    OverviewSerializer,
+    UserSerializer,
+    ProjectSerializer,
+    TaskSerializer,
+    LeaveSerializer,
+)
 
-class AdminDashboardView(APIView):
-
+class DashboardOverviewAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
-        user = request.user
+        company_user = get_company_user(request.user)
+        permissions = get_permission_dict(company_user.role)
 
-        if user.role != "ADMIN":
-            return Response(
-                {"error": "Only Admin can access dashboard"},
-                status=403
-            )
+        if not permissions.get("can_manage_company"):
+            return Response({"error": "Permission denied"}, status=403)
 
-        company = user.company
+        company = company_user.company
 
-        tasks = Task.objects.filter(company=company)
-
-        # =========================
-        # SUMMARY
-        # =========================
-
-        total_users = User.objects.filter(company=company).count()
-        total_projects = Project.objects.filter(company=company).count()
-        # total_clients = Client.objects.filter(company=company).count()
-        total_tasks = tasks.count()
-
-        completed_tasks = tasks.filter(status="COMPLETED").count()
-
-        pending_tasks = tasks.filter(
-            Q(status="PENDING") | Q(status="IN_PROGRESS")
+        total_tasks = Task.objects.filter(company=company).count()
+        completed_tasks = Task.objects.filter(
+            company=company, status="COMPLETED"
+        ).count()
+        pending_tasks = Task.objects.filter(
+            company=company, status="PENDING"
         ).count()
 
-        summary = {
-            "total_users": total_users,
-            "total_projects": total_projects,
-            # "total_clients": total_clients,
-            "total_tasks": total_tasks,
-            "completed_tasks": completed_tasks,
-            "pending_tasks": pending_tasks
-        }
-
-        # =========================
-        # EMPLOYEE PERFORMANCE
-        # =========================
-
-        employees = User.objects.filter(
-            company=company,
-            role="EMPLOYEE"
-        ).annotate(
-            completed=Count(
-                "assigned_tasks",
-                filter=Q(
-                    assigned_tasks__status="COMPLETED",
-                    assigned_tasks__company=company
-                )
-            ),
-            pending=Count(
-                "assigned_tasks",
-                filter=Q(
-                    assigned_tasks__company=company
-                ) & ~Q(assigned_tasks__status="COMPLETED")
-            )
+        # Completion %
+        completion_rate = (
+            (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
         )
 
-        employee_performance = [
-            {
-                "name": emp.username,
-                "completed": emp.completed,
-                "pending": emp.pending
-            }
-            for emp in employees
-        ]
+        # Overdue Tasks
+        overdue_tasks = Task.objects.filter(
+            company=company,
+            due_date__lt=timezone.now(),
+            status__in=["PENDING", "IN_PROGRESS"]
+        ).count()
 
-        # =========================
-        # TASK STATUS
-        # =========================
+        data = {
+            "total_clients": Project.objects.filter(company=company)
+                .values("client")
+                .distinct()
+                .count(),
 
-        task_status = {
-            "completed": completed_tasks,
-            "pending": pending_tasks
+            "total_employees": CompanyUser.objects.filter(
+                company=company
+            ).count(),
+
+            "total_projects": Project.objects.filter(
+                company=company
+            ).count(),
+
+            "total_tasks": total_tasks,
+            "completed_tasks": completed_tasks,
+            "pending_tasks": pending_tasks,
+            "completion_rate": round(completion_rate, 2),
+            "overdue_tasks": overdue_tasks,
         }
 
-        # =========================
-        # OVERDUE TASKS
-        # =========================
-
-        today = timezone.now().date()
-
-        overdue_tasks = tasks.filter(
-            due_date__isnull=False,
-            due_date__lt=today
-        ).exclude(status="COMPLETED").count()
-
-        # =========================
-        # RECENT ACTIVITY
-        # =========================
-
-        recent_tasks = tasks.select_related(
-            "assigned_to"
-        ).order_by("-created_at")[:5]
-
-        recent_activity = []
-
-        for task in recent_tasks:
-            username = task.assigned_to.username if task.assigned_to else "User"
-
-            if task.status == "COMPLETED":
-                activity = f"{username} completed '{task.title}'"
-            else:
-                activity = f"{username} updated '{task.title}'"
-
-            recent_activity.append(activity)
-
-        # =========================
-        # FINAL RESPONSE
-        # =========================
-
-        return Response({
-            "summary": summary,
-            "employee_performance": employee_performance,
-            "task_status": task_status,
-            "overdue_tasks": overdue_tasks,
-            "recent_activity": recent_activity
-        })
+        serializer = OverviewSerializer(data)
+        return Response(serializer.data)
 
 
-class ClientDashboardView(APIView):
+class MyTasksAPI(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
-        try:
-            company_user = request.user.companyuser
-        except:
-            return Response({"error": "Company user not found"}, status=400)
+        company_user = get_company_user(request.user)
+        permissions = get_permission_dict(company_user.role)
 
-        # Role check
-        if company_user.role.name != "CLIENT":
-            raise PermissionDenied("Only clients allowed")
+        if not permissions.get("can_view_assigned_tasks"):
+            return Response({"error": "Permission denied"}, status=403)
 
-        projects = company_user.client_projects.all()
+        tasks = Task.objects.filter(assigned_to=company_user)
 
-        data = []
+        serializer = TaskSerializer(tasks, many=True)
+        return Response(serializer.data)
 
-        for p in projects:
-            data.append({
-                "project_id": p.id,
-                "name": p.name,
-                "progress": p.progress,
-                "status": p.status,
-            })
 
-        return Response({
-            "client_name": company_user.name,
-            "total_projects": projects.count(),
-            "projects": data
-        })
+class MyProjectsAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        company_user = get_company_user(request.user)
+        permissions = get_permission_dict(company_user.role)
+
+        if not permissions.get("can_view_project_progress"):
+            return Response({"error": "Permission denied"}, status=403)
+
+        projects = Project.objects.filter(team_members=company_user)
+
+        serializer = ProjectSerializer(projects, many=True)
+        return Response(serializer.data)
+
+
+class UserListAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        company_user = get_company_user(request.user)
+        permissions = get_permission_dict(company_user.role)
+
+        if not permissions.get("can_manage_users"):
+            return Response({"error": "Permission denied"}, status=403)
+
+        users = CompanyUser.objects.filter(company=company_user.company)
+
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+
+class MyLeaveListAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        company_user = get_company_user(request.user)
+
+        leaves = LeaveRequest.objects.filter(company_user=company_user)
+
+        serializer = LeaveSerializer(leaves, many=True)
+        return Response(serializer.data)
+

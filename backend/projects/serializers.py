@@ -7,7 +7,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = "__all__"
-        read_only_fields = ("created_at",)
+        read_only_fields = ["created_at",'progress']
 
     def validate_progress(self, value):
         if value < 0 or value > 100:
