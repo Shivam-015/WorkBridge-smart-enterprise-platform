@@ -68,7 +68,11 @@ class Task(models.Model):
         blank=True
     )
 
-   
+    project = models.ForeignKey(
+    "projects.Project",
+    on_delete=models.CASCADE,
+    related_name="tasks"
+)
 
     progress = models.PositiveSmallIntegerField(
     default=0,

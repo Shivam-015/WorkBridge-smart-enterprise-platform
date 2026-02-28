@@ -1,13 +1,13 @@
 from rest_framework import viewsets,status
 from .models import Company,CompanyUser,Role
-from .serializers import CompanySerializer,RegistrationSerializer,RoleSerializer,CreateUserSerializer , CurrentUserSerializer
+from .serializers import *
 from rest_framework.permissions import IsAuthenticated , AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.core.mail import send_mail
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import PermissionDenied
-
+from companies.utils import get_company_user
 
 #REGISTRATION view
 class RegistrationView(APIView):
@@ -33,20 +33,12 @@ class RegistrationView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-
-
-
 #for company
 class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
 
-
-#for company users
-        
 #create user view
-
-
 class CreateUserView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -80,18 +72,15 @@ class CreateUserView(APIView):
 
         return Response(serializer.errors, status=400)
 
-
-
+# password set
 class SetPasswordView(APIView):
-    
+
     permission_classes = [AllowAny]
 
     def post(self, request, token):
 
-        password = request.data.get("password")
-
-        if not password:
-            return Response({"error": "Password required"}, status=400)
+        serializer = SetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
         try:
             company_user = CompanyUser.objects.get(invite_token=token)
@@ -99,15 +88,15 @@ class SetPasswordView(APIView):
             return Response({"error": "Invalid or expired link"}, status=400)
 
         user = company_user.user
-        user.set_password(password)
+        user.set_password(serializer.validated_data["password"])
         user.is_active = True
         user.save()
 
         company_user.status = "ACTIVE"
+        company_user.invite_token = None  # 🔥 Important (prevent reuse)
         company_user.save()
 
         return Response({"message": "Password set successfully"}, status=200)
-
 
 
 class RoleViewSet(ModelViewSet):
@@ -116,13 +105,19 @@ class RoleViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Role.objects.filter(
-            company=self.request.user.companyuser.company
-        )
+        company_user = get_company_user(self.request.user)
+        if not company_user:
+            return Role.objects.none()  # agar user linked nahi hai
+        return Role.objects.filter(company=company_user.company)
 
+    # create a new role 
     def perform_create(self, serializer):
+        try:
+            company_user = CompanyUser.objects.get(user=self.request.user)
+        except CompanyUser.DoesNotExist:
+            raise PermissionDenied("User not linked to any company")
 
-        company_user = self.request.user.companyuser
+        serializer.save(company=company_user.company)
 
         # Only if can manage roles
         if not company_user.role.can_manage_roles:
