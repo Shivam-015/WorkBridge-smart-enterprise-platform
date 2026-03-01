@@ -5,7 +5,7 @@ from tasks.models import Task
 from hr.models import LeaveRequest
 
 
-# 🔹 Overview
+#  Overview
 class OverviewSerializer(serializers.Serializer):
     total_clients = serializers.IntegerField()
     total_employees = serializers.IntegerField()
@@ -17,7 +17,7 @@ class OverviewSerializer(serializers.Serializer):
     overdue_tasks = serializers.IntegerField()
 
 
-# 🔹 Users
+#  Users
 class UserSerializer(serializers.ModelSerializer):
     role = serializers.CharField(source="role.name", allow_null=True)
 
@@ -26,7 +26,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "email", "role", "status"]
 
 
-# 🔹 Projects
+#  Projects
 class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -42,7 +42,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         ]
 
 
-# 🔹 Tasks
+#  Tasks
 class TaskSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -57,7 +57,7 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
 
 
-# 🔹 Leaves
+#  Leaves
 class LeaveSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -69,4 +69,19 @@ class LeaveSerializer(serializers.ModelSerializer):
             "reason",
             "status",
             "applied_on",
+        ]
+
+#client project
+class ClientProjectProgressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = [
+            "id",
+            "name",
+            "progress",
+            "status",
+            "start_date",
+            "end_date",
+            "budget",
+            "actual_cost"
         ]

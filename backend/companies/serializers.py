@@ -5,20 +5,14 @@ from django.db import transaction
 
 User = get_user_model()
 
-# =========================
 # COMPANY SERIALIZER
-# =========================
-
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = '__all__'
 
 
-# =========================
 # REGISTRATION
-# =========================
-
 class RegistrationSerializer(serializers.Serializer):
     company = CompanySerializer()
 
@@ -82,10 +76,7 @@ class RegistrationSerializer(serializers.Serializer):
         return user
 
 
-# =========================
 # CREATE USER (FIXED VERSION)
-# =========================
-
 class CreateUserSerializer(serializers.Serializer):
     company_id = serializers.IntegerField()
     first_name = serializers.CharField()
@@ -143,10 +134,7 @@ class CreateUserSerializer(serializers.Serializer):
         return company_user
 
 
-# =========================
 # ROLE 
-# ========================= 
-
 class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -154,10 +142,8 @@ class RoleSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ("level",)
 
-# =========================
-# CURRENT USER 
-# =========================
 
+# CURRENT USER 
 class CurrentUserSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
@@ -175,23 +161,20 @@ class CurrentUserSerializer(serializers.ModelSerializer):
 
     def get_permissions(self, obj):
         role = obj.role
+
+        permission_fields = [
+            field.name
+            for field in role._meta.fields
+            if field.name.startswith("can_")
+        ]
+
         return {
-            "can_manage_company": role.can_manage_company,
-            "can_manage_roles": role.can_manage_roles,
-            "can_manage_users": role.can_manage_users,
-            "can_create_project": role.can_create_project,
-            "can_assign_task": role.can_assign_task,
-            "can_view_all_tasks": role.can_view_all_tasks,
-            "can_view_team_tasks": role.can_view_team_tasks,
-            "can_view_assigned_tasks": role.can_view_assigned_tasks,
-            "can_update_task_status": role.can_update_task_status,
-            "can_view_project_progress": role.can_view_project_progress,
+            field: getattr(role, field)
+            for field in permission_fields
         }
 
-# =========================
-# SET PASSWORD
-# =========================
 
+# SET PASSWORD
 class SetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
