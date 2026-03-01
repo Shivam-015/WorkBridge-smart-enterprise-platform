@@ -5,6 +5,7 @@ from .views import (
     MyAttendanceAPI,
     UpdateLeaveStatusAPI,
     AddPerformanceReviewAPI,
+    HRDashboardAPI
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path("attendance/", MyAttendanceAPI.as_view()),
     path("leave/<int:leave_id>/status/", UpdateLeaveStatusAPI.as_view()),
     path("review/<int:employee_id>/", AddPerformanceReviewAPI.as_view()),
+    path('hr-dashboard/' , HRDashboardAPI.as_view()),
 ]

@@ -12,31 +12,27 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    # ================= GET TASKS =================
+    # get tasks
     def get_queryset(self):
         company_user = get_company_user(self.request.user)
 
         if not company_user:
             return Task.objects.none()
 
-        role = company_user.role
-        permissions = get_permission_dict(role)
+        permissions = get_permission_dict(company_user.role)
 
-        # 🔹 Admin / Manager: see all tasks
         if permissions.get("can_view_all_tasks"):
             return Task.objects.filter(company=company_user.company)
 
-        # 🔹 Manager: see team tasks
         if permissions.get("can_view_team_tasks"):
             return Task.objects.filter(project__manager=company_user)
 
-        # 🔹 Employee: see own tasks
         if permissions.get("can_view_assigned_tasks"):
             return Task.objects.filter(assigned_to=company_user)
 
         return Task.objects.none()
 
-    # ================= CREATE TASK =================
+    # Create Tasks
     def perform_create(self, serializer):
         company_user = get_company_user(self.request.user)
 
@@ -44,6 +40,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Company not found")
 
         permissions = get_permission_dict(company_user.role)
+
         if not permissions.get("can_assign_task"):
             raise PermissionDenied("You don't have permission to create tasks")
 
@@ -52,9 +49,9 @@ class TaskViewSet(viewsets.ModelViewSet):
             company=company_user.company
         )
 
-    # ================= UPDATE TASK =================
-    def perform_update(self, serializer):
-        company_user = get_company_user(self.request.user)
+    # update tasks
+    def partial_update(self, request, *args, **kwargs):
+        company_user = get_company_user(request.user)
 
         if not company_user:
             raise PermissionDenied("Company not found")
@@ -62,19 +59,30 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = self.get_object()
         permissions = get_permission_dict(company_user.role)
 
-        # 🔹 Manager / Admin can update any task
-        if permissions.get("can_assign_task") or permissions.get("can_view_all_tasks"):
-            serializer.save()
-            return
+        # Only assigned employee can update
+        if task.assigned_to != company_user:
+            raise PermissionDenied("You can only update your assigned task")
 
-        # 🔹 Employee can update only own task
-        if permissions.get("can_update_task_status") and task.assigned_to == company_user:
-            serializer.save()
-            return
+        if not permissions.get("can_update_task_status"):
+            raise PermissionDenied("You don't have permission to update task")
 
-        raise PermissionDenied("You don't have permission to update this task")
+        allowed_fields = {
+            "status",
+            "progress",
+            "attachment",
+            "image",
+            "reference_link",
+        }
 
-    # ================= DELETE TASK =================
+        for field in request.data.keys():
+            if field not in allowed_fields:
+                raise PermissionDenied(
+                    f"You can only update: {', '.join(allowed_fields)}"
+                )
+
+        return super().partial_update(request, *args, **kwargs)
+
+    #  DELETE TASK 
     def perform_destroy(self, instance):
         company_user = get_company_user(self.request.user)
 
@@ -82,6 +90,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Company not found")
 
         permissions = get_permission_dict(company_user.role)
+
         if not permissions.get("can_assign_task"):
             raise PermissionDenied("You don't have permission to delete tasks")
 
