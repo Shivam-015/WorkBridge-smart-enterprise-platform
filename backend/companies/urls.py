@@ -11,5 +11,5 @@ urlpatterns = [
     path("register/", RegistrationView.as_view()),
     path("create-user/", CreateUserView.as_view()),  
     path("set-password/<uuid:token>/", SetPasswordView.as_view()), 
-    path('current-user' , CurrentUserView.as_view())
+    path('current-user/' , CurrentUserView.as_view())
 ]

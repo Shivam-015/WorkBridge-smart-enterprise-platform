@@ -11,7 +11,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    # 🔹 Only show projects of user's company
+    # Only show projects of user's company
     def get_queryset(self):
         user = self.request.user
 
@@ -22,7 +22,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         return Project.objects.filter(company=company_user.company)
 
-    # 🔹 Create Project
+    #  Create Project
     def perform_create(self, serializer):
         company_user = get_company_user(self.request.user)
         print(company_user)
@@ -33,7 +33,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             company=company_user.company,
         )
 
-    # 🔹 Assign Client to Project
+    #  Assign Client to Project
     @action(detail=True, methods=["patch"])
     def assign_client(self, request, pk=None):
         project = self.get_object()
@@ -51,7 +51,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         return Response({"message": "Client assigned successfully"})
 
-    # 🔹 Soft Delete 
+    # Soft Delete 
     @action(detail=True, methods=["patch"])
     def deactivate(self, request, pk=None):
         project = self.get_object()
@@ -61,4 +61,3 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return Response({"message": "Project deactivated"})
 
 
-    # update project

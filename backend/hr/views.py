@@ -1,12 +1,59 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
 
 from companies.utils import get_company_user, get_permission_dict
 from companies.models import CompanyUser
 
 from .models import *
 from .serializers import *
+
+class HRDashboardAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        company_user = get_company_user(request.user)
+        permissions = get_permission_dict(company_user.role)
+
+        if not permissions.get("can_manage_hr"):
+            return Response({"error": "Permission denied"}, status=403)
+
+        company = company_user.company
+        today = timezone.now().date()
+
+        total_employees = EmployeeProfile.objects.filter(company_user__company=company).count()
+
+        present = Attendance.objects.filter(company_user__company=company, date=today, status="PRESENT").count()
+        absent = Attendance.objects.filter(company_user__company=company, date=today, status="ABSENT").count()
+        half_day = Attendance.objects.filter(company_user__company=company, date=today, status="HALF_DAY").count()
+        on_leave = LeaveRequest.objects.filter(
+            company_user__company=company,
+            start_date__lte=today,
+            end_date__gte=today,
+            status="APPROVED"
+        ).count()
+
+        attendance_percentage = round((present / total_employees) * 100) if total_employees else 0
+
+        # Leave summary (all time)
+        leave_summary = {
+            "approved": LeaveRequest.objects.filter(company_user__company=company, status="APPROVED").count(),
+            "pending": LeaveRequest.objects.filter(company_user__company=company, status="PENDING").count(),
+            "rejected": LeaveRequest.objects.filter(company_user__company=company, status="REJECTED").count()
+        }
+
+        return Response({
+            "total_employees": total_employees,
+            "attendance": {
+                "present": present,
+                "absent": absent,
+                "half_day": half_day,
+                "on_leave": on_leave,
+                "attendance_percentage": attendance_percentage
+            },
+            "leave_summary": leave_summary
+        })
 
 class MyProfileAPI(APIView):
     permission_classes = [IsAuthenticated]
