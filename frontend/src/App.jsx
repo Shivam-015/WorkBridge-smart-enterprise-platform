@@ -7,14 +7,18 @@ import {
 } from "react-router-dom";
 import Login from "./pages/LoginPage";
 import Register from "./pages/RegisterPage";
-import AdminDashboard from "./pages/AdminDashboard";
+import OwnerDashboard from "./pages/OwnerDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import ClientDashboard from "./pages/ClientDashboard";
 import Home from "./pages/Home";
 
 const ProtectedRoute = ({ children }) => {
-  const user = JSON.parse(localStorage.getItem("user"));
+  // Check both localStorage and sessionStorage for user
+  const localUser = localStorage.getItem("user");
+  const sessionUser = sessionStorage.getItem("user");
+  
+  const user = localUser ? JSON.parse(localUser) : (sessionUser ? JSON.parse(sessionUser) : null);
 
   if (!user) {
     return <Navigate to="/" />;
@@ -32,10 +36,10 @@ const App = () => {
         <Route path="/register" element={<Register  />} />
 
         <Route
-          path="/admin"
+          path="/owner"
           element={
             <ProtectedRoute>
-              <AdminDashboard />
+              <OwnerDashboard />
             </ProtectedRoute>
           }
         />

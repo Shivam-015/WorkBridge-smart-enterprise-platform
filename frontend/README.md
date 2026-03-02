@@ -1,14 +1,14 @@
 # WorkFlowBridge
 
-> A lightweight React + Vite app for managing workflows across clients, employees, managers and admins.
+> A lightweight React + Vite app for managing workflows across clients, employees, managers and owners.
 
 ## Summary
 
-WorkFlowBridge is a frontend application scaffolded with Vite and React. It includes routing for multiple dashboard roles (Admin, Manager, Employee, Client) and pages for authentication and registration. TailwindCSS and Axios are used for styling and API calls.
+WorkFlowBridge is a frontend application scaffolded with Vite and React. It includes routing for multiple dashboard roles (Owner, Manager, Employee, Client) and pages for authentication and registration. TailwindCSS and Axios are used for styling and API calls.
 
 ## Features
 
-- Role-based dashboard pages (Admin, Manager, Employee, Client)
+- Role-based dashboard pages (Owner, Manager, Employee, Client)
 - Authentication and registration pages
 - TailwindCSS for utility-first styling
 - Vite for fast development and build
@@ -16,7 +16,7 @@ WorkFlowBridge is a frontend application scaffolded with Vite and React. It incl
 ## Repository Structure
 
 - `src/` — application source files
-  - `pages/` — route pages (AdminDashboard, ManagerDashboard, EmployeeDashboard, ClientDashboard, Home, LoginPage, RegisterPage)
+  - `pages/` — route pages (OwnerDashboard, ManagerDashboard, EmployeeDashboard, ClientDashboard, Home, LoginPage, RegisterPage)
   - `api/` — API client helpers
   - `assets/` — static assets
 
