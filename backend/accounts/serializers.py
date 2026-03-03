@@ -4,10 +4,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from companies.models import  CompanyUser
 
 User = get_user_model()
-
-
-
-
 # LOGIN
 
 class LoginSerializer(serializers.Serializer):
@@ -47,3 +43,10 @@ class LoginSerializer(serializers.Serializer):
                 "refresh": str(refresh),
             }
         }
+
+class ApplyLeaveSerializer(serializers.ModelSerializer):
+
+    def validate(self, data):
+        if data["end_date"] < data["start_date"]:
+            raise serializers.ValidationError("End date cannot be before start date")
+        return data

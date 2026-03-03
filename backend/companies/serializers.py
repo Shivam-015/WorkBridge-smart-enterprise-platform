@@ -5,20 +5,14 @@ from django.db import transaction
 
 User = get_user_model()
 
-# =========================
 # COMPANY SERIALIZER
-# =========================
-
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = '__all__'
 
 
-# =========================
 # REGISTRATION
-# =========================
-
 class RegistrationSerializer(serializers.Serializer):
     company = CompanySerializer()
 
@@ -82,10 +76,7 @@ class RegistrationSerializer(serializers.Serializer):
         return user
 
 
-# =========================
 # CREATE USER (FIXED VERSION)
-# =========================
-
 class CreateUserSerializer(serializers.Serializer):
     company_id = serializers.IntegerField()
     first_name = serializers.CharField()
@@ -141,3 +132,54 @@ class CreateUserSerializer(serializers.Serializer):
         )
 
         return company_user
+
+
+# ROLE 
+class RoleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Role
+        fields = "__all__"
+        read_only_fields = ("level",)
+
+
+# CURRENT USER 
+class CurrentUserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+    permissions = serializers.SerializerMethodField()
+    level = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CompanyUser
+        fields = ["id", "name", "email", "role", "level", "permissions"]
+
+    def get_role(self, obj):
+        return obj.role.name
+
+    def get_level(self, obj):
+        return obj.role.level
+
+    def get_permissions(self, obj):
+        role = obj.role
+
+        permission_fields = [
+            field.name
+            for field in role._meta.fields
+            if field.name.startswith("can_")
+        ]
+
+        return {
+            field: getattr(role, field)
+            for field in permission_fields
+        }
+
+
+# SET PASSWORD
+class SetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError("Passwords do not match")
+        return data
