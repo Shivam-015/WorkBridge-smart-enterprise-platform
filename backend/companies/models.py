@@ -1,12 +1,13 @@
 from django.db import models
 from django.conf import settings
+from django.utils.text import slugify
+import uuid
 
 
 class Company(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15)
-    industry = models.CharField(max_length=100)
     size = models.CharField(max_length=50)
     address = models.TextField(blank=True, null=True)
     logo = models.ImageField(upload_to='company_logos/', blank=True, null=True)
@@ -48,16 +49,24 @@ class Role(models.Model):
     #  Client Access
     can_view_project_progress = models.BooleanField(default=False)
 
+    # hr permissions
+    can_manage_hr = models.BooleanField(default=False)
+    can_approve_leave = models.BooleanField(default=False)
+    can_view_attendance = models.BooleanField(default=False)
+    can_manage_payroll = models.BooleanField(default=False)
+
     # Level Based Hierarchy
-    level = models.IntegerField(default=10)
+    level = models.IntegerField(default=0)
+
+    def save(self, *args, **kwargs):
+
+        if not self.slug:
+            self.slug = slugify(self.name)
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.company.name})"
-
-
-import uuid
-from django.conf import settings
-from django.db import models
 
 
 class CompanyUser(models.Model):
@@ -88,7 +97,7 @@ class CompanyUser(models.Model):
         default="INVITED"
     )
 
-    invite_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    invite_token = models.UUIDField(default=uuid.uuid4, unique=True, null=True, blank=True)
     account_no = models.IntegerField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
