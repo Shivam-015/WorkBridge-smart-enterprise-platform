@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings
 from companies.models import Company,CompanyUser
 from django.core.validators import MaxValueValidator
 
@@ -69,7 +68,11 @@ class Task(models.Model):
         blank=True
     )
 
-   
+    project = models.ForeignKey(
+    "projects.Project",
+    on_delete=models.CASCADE,
+    related_name="tasks"
+)
 
     progress = models.PositiveSmallIntegerField(
     default=0,
