@@ -31,10 +31,4 @@ ai/
 │   ├── users.json
 │   └── workflows.json
 │
-├── tests/                     # All test files here
-│   ├── test_pipeline.py
-│   ├── test_routing.py
-│   ├── test_engine.py
-│   └── test_full_pipeline.py
-│
-└── main.py                    # Entry point to run AI system
+└── main.py                    # Entry point to run AI system 

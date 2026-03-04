@@ -11,7 +11,6 @@ class CompanySerializer(serializers.ModelSerializer):
         model = Company
         fields = '__all__'
 
-
 # REGISTRATION
 class RegistrationSerializer(serializers.Serializer):
     company = CompanySerializer()
@@ -62,7 +61,7 @@ class RegistrationSerializer(serializers.Serializer):
             can_view_project_progress=True,
         )
 
-        # 5️⃣ Link User to Company
+        #  Link User to Company
         CompanyUser.objects.create(
             user=user,
             company=company,
