@@ -1,17 +1,18 @@
-from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import CompanyUser, Role, Company
 from django.db import transaction
+from rest_framework import serializers
+
+from .models import CompanyUser, Role, Company
 
 User = get_user_model()
 
-# COMPANY SERIALIZER
+
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = '__all__'
+        fields = "__all__"
 
-# REGISTRATION
+
 class RegistrationSerializer(serializers.Serializer):
     company = CompanySerializer()
 
@@ -32,7 +33,6 @@ class RegistrationSerializer(serializers.Serializer):
 
         company = Company.objects.create(**company_data)
 
-        #  Create Owner User 
         user = User.objects.create_user(
             username=validated_data["owner_email"],
             email=validated_data["owner_email"],
@@ -40,11 +40,9 @@ class RegistrationSerializer(serializers.Serializer):
             first_name=validated_data["owner_name"]
         )
 
-        # Assign Owner to Company (OneToOne)
         company.owner = user
         company.save()
 
-        # Create OWNER Role (Full Access)
         owner_role = Role.objects.create(
             name="OWNER",
             company=company,
@@ -61,7 +59,6 @@ class RegistrationSerializer(serializers.Serializer):
             can_view_project_progress=True,
         )
 
-        #  Link User to Company
         CompanyUser.objects.create(
             user=user,
             company=company,
@@ -71,11 +68,9 @@ class RegistrationSerializer(serializers.Serializer):
             status="ACTIVE"
         )
 
-
         return user
 
 
-# CREATE USER (FIXED VERSION)
 class CreateUserSerializer(serializers.Serializer):
     company_id = serializers.IntegerField()
     first_name = serializers.CharField()
@@ -83,20 +78,16 @@ class CreateUserSerializer(serializers.Serializer):
     role_id = serializers.IntegerField()
 
     def validate(self, data):
-
-        #  Company check
         try:
             company = Company.objects.get(id=data["company_id"])
         except Company.DoesNotExist:
             raise serializers.ValidationError("Company not found.")
 
-        #  Role check
         try:
-            role = Role.objects.get(id=data["role_id"], company=company)
+            Role.objects.get(id=data["role_id"], company=company)
         except Role.DoesNotExist:
             raise serializers.ValidationError("Invalid role for this company.")
 
-        # Duplicate check
         existing_user = User.objects.filter(email=data["email"]).first()
 
         if existing_user:
@@ -111,10 +102,9 @@ class CreateUserSerializer(serializers.Serializer):
         return data
 
     def create(self, validated_data):
-
         company = Company.objects.get(id=validated_data["company_id"])
 
-        user, created = User.objects.get_or_create(
+        user, _created = User.objects.get_or_create(
             email=validated_data["email"],
             defaults={
                 "username": validated_data["email"],
@@ -127,23 +117,24 @@ class CreateUserSerializer(serializers.Serializer):
             user=user,
             company=company,
             role_id=validated_data["role_id"],
+            name=validated_data["first_name"],
+            email=validated_data["email"],
             status="INVITED"
         )
 
         return company_user
 
 
-# ROLE 
 class RoleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Role
         fields = "__all__"
-        read_only_fields = ("level",)
 
 
-# CURRENT USER 
 class CurrentUserSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    email = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
     level = serializers.SerializerMethodField()
@@ -151,6 +142,26 @@ class CurrentUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanyUser
         fields = ["id", "name", "email", "role", "level", "permissions"]
+
+    def get_name(self, obj):
+        if obj.name:
+            return obj.name
+        if obj.user:
+            full_name = obj.user.get_full_name().strip()
+            if full_name:
+                return full_name
+            if obj.user.first_name:
+                return obj.user.first_name
+            if obj.user.username:
+                return obj.user.username
+        return obj.email or None
+
+    def get_email(self, obj):
+        if obj.email:
+            return obj.email
+        if obj.user:
+            return obj.user.email
+        return None
 
     def get_role(self, obj):
         return obj.role.name
@@ -173,7 +184,6 @@ class CurrentUserSerializer(serializers.ModelSerializer):
         }
 
 
-# SET PASSWORD
 class SetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)

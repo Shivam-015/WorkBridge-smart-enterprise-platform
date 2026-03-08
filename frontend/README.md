@@ -1,100 +1,49 @@
-# WorkFlowBridge
+# Frontend (React + Vite + Tailwind)
 
-> A lightweight React + Vite app for managing workflows across clients, employees, managers and admins.
+## Setup
+1. `cd frontend`
+2. `copy .env.example .env`
+3. `npm install`
+4. `npm run dev`
 
-## Summary
+Backend base URL: `VITE_API_BASE_URL` (default `http://127.0.0.1:8000/api`).
 
-WorkFlowBridge is a frontend application scaffolded with Vite and React. It includes routing for multiple dashboard roles (Admin, Manager, Employee, Client) and pages for authentication and registration. TailwindCSS and Axios are used for styling and API calls.
+## JWT Auth
+- Login (`POST /login/`) se `access` + `refresh` dono store hote hain.
+- API client automatic `Authorization: Bearer <access>` bhejta hai.
+- 401 aane par frontend refresh token se naya access token lene ki koshish karta hai.
+- Default refresh endpoint: `/token/refresh/` (change via `VITE_TOKEN_REFRESH_PATH`).
+## Role-wise Side Panel
+Role auto-detect hota hai `GET /current-user/` ke permissions + role name se.
+Sidebar options bhi permissions ke basis pe hide/show hote hain.
 
-## Features
+### Owner
+1. Dashboard: `GET /overview/`, `GET /companies/`
+2. Roles: `POST /roles/`, `GET /roles/`
+3. Users: `POST /create-user/`, `GET /users/`
+4. Projects: `GET /all-projects/`
+5. Tasks & Analytics: `GET /all-tasks/`, `GET /task-analytics/`
+6. Company Settings: `GET /companies/`, `PUT /companies/:id/`
 
-- Role-based dashboard pages (Admin, Manager, Employee, Client)
-- Authentication and registration pages
-- TailwindCSS for utility-first styling
-- Vite for fast development and build
+### Manager
+1. Dashboard: `GET /manager-overview/`, `GET /manager-projects/`, `GET /my-tasks/`, `GET /my-leaves/`
+2. Users: `POST /create-user/`, `GET /users/`, `GET /team/`, `GET /team-tasks/`
+3. Roles: `POST /roles/`, `GET /roles/`
+4. Projects: `POST /projects/`, `PATCH /projects/:id/assign_client/`, `PATCH /projects/:id/deactivate/`, `PATCH /projects/:id/`
+5. Tasks: `POST /tasks/`, `GET /project-tasks/:project_id/`, `PUT /tasks/:id/`, `DELETE /tasks/:id/`
 
-## Repository Structure
+### Employee
+1. Dashboard: `GET /tasks/`, `GET /projects/`, `PATCH /tasks/:id/`
+2. Attendance & Leave: `POST /attendance/checkin/`, `POST /attendance/checkout/`, `POST /leave/apply/`, `GET /my-leaves/`
 
-- `src/` — application source files
-  - `pages/` — route pages (AdminDashboard, ManagerDashboard, EmployeeDashboard, ClientDashboard, Home, LoginPage, RegisterPage)
-  - `api/` — API client helpers
-  - `assets/` — static assets
+### HR
+1. Dashboard: `GET /hr-dashboard/`, `GET /users/`, `POST /create-user/`, `POST /roles/`
+2. Attendance, Leave, Review: `GET /attendance/`, `PATCH /leave/:id/status/`, `POST /review/:employee_id/`
+3. Departments: `GET /departments/`, `POST /departments/`
 
-## Getting Started
+### Client
+1. Dashboard: `GET /client-projects/`
 
-Prerequisites:
-
-- Node.js (recommended 18+)
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run the development server:
-
-```bash
-npm run dev
-```
-
-Build for production:
-
-```bash
-npm run build
-```
-
-Preview the production build locally:
-
-```bash
-npm run preview
-```
-
-Lint the project:
-
-```bash
-npm run lint
-```
-
-## Available NPM Scripts
-
-- `dev`: Starts Vite dev server
-- `build`: Builds the production bundle with Vite
-- `preview`: Serves the built production bundle locally
-- `lint`: Runs ESLint across the project
-
-## Tech Stack
-
-- React
-- Vite
-- Tailwind CSS
-- Axios
-- ESLint
-
-## Contributing
-
-Contributions are welcome. Open an issue or submit a pull request describing the change.
-
-## License
-
-This project does not include a license file. Add a `LICENSE` if you plan to open-source it.
-
----
-
-If you'd like, I can add a short Getting Started GIF, CI workflow, or a `LICENSE` file next.
-# React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Backend alignment note
+- Company settings ke liye primary route `/companies/:id/` use hai, aur fallback `/company/:id/` bhi support kiya gaya hai.
+- Project deactivate backend action `PATCH /projects/:id/deactivate/` use karta hai.

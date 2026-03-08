@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Project
+from .models import Project , ProjectTeam
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -7,7 +7,21 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = "__all__"
-        read_only_fields = ["created_at",'progress']
+        read_only_fields = ["created_at",'progress','company']
+
+    def create(self, validated_data):
+
+        team_data = validated_data.pop("team_members", [])
+        project = Project.objects.create(**validated_data)
+
+        for member in team_data:
+            ProjectTeam.objects.create(
+                project=project,
+                member_id=member["member_id"],
+                role=member["role"]
+            )
+
+        return project
 
     def validate_progress(self, value):
         if value < 0 or value > 100:
@@ -24,3 +38,10 @@ class ProjectSerializer(serializers.ModelSerializer):
             )
 
         return data
+
+
+class ProjectTeamSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ProjectTeam
+        fields = "__all__"
