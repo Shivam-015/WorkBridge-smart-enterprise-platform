@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import LoginSerializer
+from .serializers import LoginSerializer , LogoutSerializer
 from rest_framework.exceptions import ValidationError
 from companies.models import CompanyUser
 from hr.models import Attendance, LeaveRequest
@@ -21,6 +21,24 @@ class LoginView(APIView):
             return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        serializer = LogoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Logged out successfully"
+            },
+            status=status.HTTP_200_OK
+        )
 
 class MarkAttendanceAPI(APIView):
 
