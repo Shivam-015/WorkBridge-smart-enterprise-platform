@@ -1,13 +1,24 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
 from django.utils import timezone
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from companies.utils import get_company_user, get_permission_dict
 from companies.models import CompanyUser
+from companies.utils import get_company_user, get_permission_dict
 
 from .models import *
 from .serializers import *
+
+
+def manager_employee_company_users(company):
+    return CompanyUser.objects.filter(company=company).filter(
+        Q(role__name__icontains="manager")
+        | Q(role__slug__icontains="manager")
+        | Q(role__name__icontains="employee")
+        | Q(role__slug__icontains="employee")
+    ).distinct()
+
 
 class HRDashboardAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -22,7 +33,9 @@ class HRDashboardAPI(APIView):
         company = company_user.company
         today = timezone.now().date()
 
-        total_employees = EmployeeProfile.objects.filter(company_user__company=company).count()
+        total_employees = CompanyUser.objects.filter(
+            company=company
+        ).count()
 
         present = Attendance.objects.filter(company_user__company=company, date=today, status="PRESENT").count()
         absent = Attendance.objects.filter(company_user__company=company, date=today, status="ABSENT").count()
@@ -36,7 +49,6 @@ class HRDashboardAPI(APIView):
 
         attendance_percentage = round((present / total_employees) * 100) if total_employees else 0
 
-        # Leave summary (all time)
         leave_summary = {
             "approved": LeaveRequest.objects.filter(company_user__company=company, status="APPROVED").count(),
             "pending": LeaveRequest.objects.filter(company_user__company=company, status="PENDING").count(),
@@ -54,6 +66,7 @@ class HRDashboardAPI(APIView):
             },
             "leave_summary": leave_summary
         })
+
 
 class MyProfileAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -76,6 +89,7 @@ class MyProfileAPI(APIView):
         serializer.save()
         return Response(serializer.data)
 
+
 class DepartmentListCreateAPI(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -97,15 +111,28 @@ class DepartmentListCreateAPI(APIView):
         serializer.save(company=company_user.company)
         return Response(serializer.data, status=201)
 
+
 class MyAttendanceAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         company_user = get_company_user(request.user)
-        attendance = Attendance.objects.filter(company_user=company_user)
+        permissions = get_permission_dict(company_user.role)
+
+        if permissions.get("can_manage_hr"):
+            scoped_user_ids = manager_employee_company_users(company_user.company).values_list("id", flat=True)
+            attendance = Attendance.objects.select_related("company_user__role", "company_user__user").filter(
+                company_user_id__in=scoped_user_ids,
+                check_in__isnull=False
+            ).order_by("-date", "-check_in")
+        else:
+            attendance = Attendance.objects.select_related("company_user__role", "company_user__user").filter(
+                company_user=company_user
+            ).order_by("-date", "-check_in")
 
         serializer = AttendanceSerializer(attendance, many=True)
         return Response(serializer.data)
+
 
 class UpdateLeaveStatusAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -117,13 +144,17 @@ class UpdateLeaveStatusAPI(APIView):
         if not permissions.get("can_manage_hr"):
             return Response({"error": "Permission denied"}, status=403)
 
-        leave = LeaveRequest.objects.get(id=leave_id)
+        leave = LeaveRequest.objects.select_related("company_user__role", "company_user__user").get(
+            id=leave_id,
+            company_user__company=company_user.company
+        )
 
-        leave.status = request.data.get("status")
+        leave.status = str(request.data.get("status") or "").upper()
         leave.save()
 
         serializer = LeaveSerializer(leave)
         return Response(serializer.data)
+
 
 class AddPerformanceReviewAPI(APIView):
     permission_classes = [IsAuthenticated]

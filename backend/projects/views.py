@@ -25,7 +25,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
     #  Create Project
     def perform_create(self, serializer):
         company_user = get_company_user(self.request.user)
-        print(company_user)
         if not company_user:
             raise PermissionDenied("User not linked to any company")
 

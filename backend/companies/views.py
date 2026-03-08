@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 from django.core.mail import send_mail
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import PermissionDenied
-from companies.utils import get_company_user 
-
+from companies.utils import get_company_user , get_permission_dict
+from dashboard.serializers import UserSerializer
 from django.core.mail import send_mail
 from django.conf import settings
 
@@ -60,8 +60,9 @@ class CreateUserView(APIView):
             if not recipient_email:
                 return Response({"error": "User has no email"}, status=400)
 
-            # 🔹 Generate invite link
-            invite_link = f"https://yourfrontend.com/set-password/{company_user.invite_token}"
+            # invite link
+            base_url = settings.FRONTEND_BASE_URL.rstrip("/")
+            invite_link = f"{base_url}/set-password/{company_user.invite_token}"
 
             # 🔹 Send email
             send_mail(
@@ -81,6 +82,83 @@ class CreateUserView(APIView):
         return Response(serializer.errors, status=400)
 
 
+# update user
+class UpdateUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, user_id):
+
+        company_user = get_company_user(request.user)
+        permissions = get_permission_dict(company_user.role)
+
+        if not permissions.get("can_manage_users"):
+            raise PermissionDenied("Permission denied")
+
+        try:
+            user = CompanyUser.objects.get(
+                id=user_id,
+                company=company_user.company
+            )
+        except CompanyUser.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        name = request.data.get("name")
+        role_id = request.data.get("role")
+        status_val = request.data.get("status")
+
+        if name:
+            user.name = name
+
+        if role_id:
+            try:
+                role = Role.objects.get(
+                    id=role_id,
+                    company=company_user.company
+                )
+                user.role = role
+            except Role.DoesNotExist:
+                return Response({"error": "Invalid role"}, status=400)
+
+        if status_val:
+            user.status = status_val
+
+        user.save()
+
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+
+# delete user
+class DeleteUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, user_id):
+
+        company_user = get_company_user(request.user)
+        permissions = get_permission_dict(company_user.role)
+
+        if not permissions.get("can_manage_users"):
+            raise PermissionDenied("Permission denied")
+
+        try:
+            user = CompanyUser.objects.get(
+                id=user_id,
+                company=company_user.company
+            )
+        except CompanyUser.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        # hierarchy protection
+        if user.role.level >= company_user.role.level:
+            raise PermissionDenied(
+                "Cannot delete user with equal or higher role"
+            )
+
+        user.delete()
+
+        return Response({
+            "success": True,
+            "message": "User deleted successfully"
+        })
 
 # SET PASSWORD VIEW
 class SetPasswordView(APIView):
@@ -109,7 +187,7 @@ class SetPasswordView(APIView):
 
         return Response({"message": "Password set successfully"}, status=200)
 
-#ROLE VIEW
+
 class RoleViewSet(ModelViewSet):
 
     serializer_class = RoleSerializer
@@ -117,30 +195,59 @@ class RoleViewSet(ModelViewSet):
 
     def get_queryset(self):
         company_user = get_company_user(self.request.user)
+
         if not company_user:
-            return Role.objects.none()  # agar user linked nahi hai
+            return Role.objects.none()
+
         return Role.objects.filter(company=company_user.company)
 
-    # create a new role 
+    # CREATE ROLE
     def perform_create(self, serializer):
-        try:
-            company_user = CompanyUser.objects.get(user=self.request.user)
-        except CompanyUser.DoesNotExist:
-            raise PermissionDenied("User not linked to any company")
 
-        serializer.save(company=company_user.company)
+        company_user = get_company_user(self.request.user)
 
-        # Only if can manage roles
         if not company_user.role.can_manage_roles:
             raise PermissionDenied("You cannot create roles")
 
         new_role = serializer.save(company=company_user.company)
 
-        # LEVEL HIERARCHY CHECK
         if new_role.level >= company_user.role.level:
+            new_role.delete()
             raise PermissionDenied(
                 "Cannot create role equal or higher than your authority"
             )
+
+    # UPDATE ROLE
+    def perform_update(self, serializer):
+
+        company_user = get_company_user(self.request.user)
+        role = self.get_object()
+
+        if not company_user.role.can_manage_roles:
+            raise PermissionDenied("You cannot update roles")
+
+        if role.level >= company_user.role.level:
+            raise PermissionDenied(
+                "Cannot update role equal or higher than your authority"
+            )
+
+        serializer.save()
+
+    # DELETE ROLE
+    def perform_destroy(self, instance):
+
+        company_user = get_company_user(self.request.user)
+
+        if not company_user.role.can_manage_roles:
+            raise PermissionDenied("You cannot delete roles")
+
+        if instance.level >= company_user.role.level:
+            raise PermissionDenied(
+                "Cannot delete role equal or higher than your authority"
+            )
+
+        instance.delete()
+
 #CURRENT view
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
