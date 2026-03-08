@@ -56,3 +56,29 @@ class Project(models.Model):
 
     def __str__(self):
         return self.name
+
+
+
+class ProjectTeam(models.Model):
+
+    project = models.ForeignKey(
+        "Project",
+        on_delete=models.CASCADE,
+        related_name="team_members"
+    )
+
+    member = models.ForeignKey(
+        "companies.CompanyUser",
+        on_delete=models.CASCADE,
+        related_name="project_teams"
+    )
+
+    role = models.CharField(max_length=100)
+
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("project", "member")
+
+    def __str__(self):
+        return f"{self.member} - {self.role} - {self.project}"

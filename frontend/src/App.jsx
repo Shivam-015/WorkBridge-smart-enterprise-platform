@@ -1,76 +1,59 @@
-import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-import Login from "./pages/LoginPage";
-import Register from "./pages/RegisterPage";
-import AdminDashboard from "./pages/AdminDashboard";
-import EmployeeDashboard from "./pages/EmployeeDashboard";
-import ManagerDashboard from "./pages/ManagerDashboard";
-import ClientDashboard from "./pages/ClientDashboard";
-import Home from "./pages/Home";
+import { Navigate, Route, Routes } from "react-router-dom";
+import ManagerDashboardPage from "./pages/ManagerDashboardPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import SetPasswordPage from "./pages/SetPasswordPage";
+import TaskDetailsPage from "./pages/TaskDetailsPage";
+import ProjectDetailsPage from "./pages/ProjectDetailsPage";
+import UserDetailsPage from "./pages/UserDetailsPage";
+import { AuthProvider, useAuth } from "./lib/auth";
 
-const ProtectedRoute = ({ children }) => {
-  const user = JSON.parse(localStorage.getItem("user"));
+function ProtectedRoute({ children }) {
+  const { token } = useAuth();
+  return token ? children : <Navigate to="/login" replace />;
+}
 
-  if (!user) {
-    return <Navigate to="/" />;
-  }
-
-  return children;
-};
-
-const App = () => {
+export default function App() {
   return (
-    <Router>
+    <AuthProvider>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register  />} />
-
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/set-password/:token" element={<SetPasswordPage />} />
         <Route
-          path="/admin"
+          path="/"
           element={
             <ProtectedRoute>
-              <AdminDashboard />
+              <ManagerDashboardPage />
             </ProtectedRoute>
           }
         />
-
         <Route
-          path="/employee"
+          path="/task/:taskId"
           element={
             <ProtectedRoute>
-              <EmployeeDashboard />
+              <TaskDetailsPage />
             </ProtectedRoute>
           }
         />
-
         <Route
-          path="/manager"
+          path="/project/:projectId"
           element={
             <ProtectedRoute>
-              <ManagerDashboard />
+              <ProjectDetailsPage />
             </ProtectedRoute>
           }
         />
-
         <Route
-          path="/client"
+          path="/user/:userId"
           element={
             <ProtectedRoute>
-              <ClientDashboard />
+              <UserDetailsPage />
             </ProtectedRoute>
           }
         />
-
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Router>
+    </AuthProvider>
   );
-};
-
-export default App;
+}
