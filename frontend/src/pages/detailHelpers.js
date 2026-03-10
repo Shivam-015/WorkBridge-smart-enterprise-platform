@@ -34,8 +34,37 @@ export function getEntityId(value) {
   return value ?? "";
 }
 
+export function humanizeLabel(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "-";
+
+  const normalized = raw.replace(/_/g, " ").replace(/-/g, " ").replace(/\s+/g, " ").trim();
+  if (!normalized) return "-";
+
+  const preserveUppercase = new Set(["HR", "ID", "PDF", "API", "URL"]);
+
+  return normalized
+    .split(" ")
+    .map((token) => {
+      const upper = token.toUpperCase();
+      if (preserveUppercase.has(upper)) return upper;
+      return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 export function formatValue(value) {
   if (value === null || value === undefined || value === "") return "-";
+
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!text) return "-";
+    if (/^https?:\/\//i.test(text) || text.includes("@")) return text;
+    if (text.includes("_") || /[A-Za-z]-[A-Za-z]/.test(text) || /^[A-Z][A-Z0-9 ]+$/.test(text)) {
+      return humanizeLabel(text);
+    }
+    return text;
+  }
 
   if (typeof value === "object") {
     try {

@@ -7,6 +7,7 @@ import {
   extractError,
   formatValue,
   getEntityId,
+  humanizeLabel,
   mergeRowsById,
   toArray
 } from "./detailHelpers";
@@ -192,22 +193,22 @@ export default function UserDetailsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 p-4 md:p-6">
+    <main className="min-h-screen p-4 md:p-6" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
       <section className="mx-auto max-w-6xl space-y-4">
-        <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <header className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">User Details</p>
-              <h1 className="text-2xl font-bold text-slate-900">{userRow?.name || "User"}</h1>
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">User Details</p>
+              <h1 className="text-2xl font-bold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{userRow?.name || "User"}</h1>
               <p className="mt-1 text-sm text-slate-500">Important list fields stay on the table. Full available details open here.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button className="btn-secondary" onClick={() => navigate(-1)}>
+              <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={() => navigate(-1)}>
                 Back
               </button>
               {!loading && !errorText && userRow ? (
-                <button className="btn-primary" onClick={() => setShowEditForm((value) => !value)}>
-                  {showEditForm ? "Close Update" : "Update User"}
+                <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={() => setShowEditForm((value) => !value)}>
+                  {showEditForm ? "Close Editor" : "Edit User"}
                 </button>
               ) : null}
             </div>
@@ -229,8 +230,8 @@ export default function UserDetailsPage() {
         {!loading && !errorText && userRow ? (
           <>
             <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-              <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Summary</h2>
+              <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <h2 className="text-base font-bold text-blue-900">Summary</h2>
                 <div className="mt-3 space-y-2 text-sm text-slate-700">
                   <p><span className="font-semibold">Name:</span> {userRow.name || "-"}</p>
                   <p><span className="font-semibold">Email:</span> {userRow.email || "-"}</p>
@@ -242,8 +243,8 @@ export default function UserDetailsPage() {
                 </div>
               </article>
 
-              <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Assigned Tasks</h2>
+              <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <h2 className="text-base font-bold text-blue-900">Assigned Tasks</h2>
                 <div className="mt-3 space-y-3 text-sm text-slate-700">
                   {!assignedTasks.length ? <p className="text-slate-500">No assigned tasks found.</p> : null}
                   {assignedTasks.map((task) => (
@@ -263,16 +264,16 @@ export default function UserDetailsPage() {
             </section>
 
             {showEditForm ? (
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Update User</h2>
+              <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <h2 className="text-base font-bold text-blue-900">Edit User</h2>
                 <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={submitUpdate}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Name</span>
-                    <input className="input" value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} required />
+                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} required />
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Role</span>
-                    <select className="input" value={form.role} onChange={(event) => setForm((value) => ({ ...value, role: event.target.value }))} required>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.role} onChange={(event) => setForm((value) => ({ ...value, role: event.target.value }))} required>
                       <option value="">Select role</option>
                       {roles.map((role) => (
                         <option key={role.id} value={role.id}>{role.name}</option>
@@ -281,23 +282,23 @@ export default function UserDetailsPage() {
                   </label>
                   <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
                     <span className="font-medium">Status</span>
-                    <select className="input" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="INVITED">INVITED</option>
-                      <option value="INACTIVE">INACTIVE</option>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
+                      <option value="ACTIVE">Active</option>
+                      <option value="INVITED">Invited</option>
+                      <option value="INACTIVE">Inactive</option>
                     </select>
                   </label>
-                  <button className="btn-primary md:col-span-2" disabled={saving}>{saving ? "Updating..." : "Update User"}</button>
+                  <button className="md:col-span-2 w-full rounded-lg bg-blue-800 py-2.5 font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={saving}>{saving ? "Saving..." : "Save User"}</button>
                 </form>
               </section>
             ) : null}
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-base font-semibold text-slate-900">All User Fields</h2>
+            <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+              <h2 className="text-base font-bold text-blue-900">User Details</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {allFields.map(([key, value]) => (
                   <article key={key} className="rounded border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{key}</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">{humanizeLabel(key)}</p>
                     <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-800">{formatValue(value)}</pre>
                   </article>
                 ))}

@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from companies.models import CompanyUser
 from companies.utils import get_company_user, get_permission_dict
 from hr.models import LeaveRequest
-from projects.models import Project,ProjectTeam
+from projects.models import Project
 from tasks.models import Task
 
 from .serializers import (
@@ -35,10 +35,6 @@ def is_manager_company_user(company_user):
     role_slug = str(getattr(company_user.role, "slug", "")).lower()
     return "manager" in f"{role_name} {role_slug}".strip()
 
-
-def can_view_team_scope(company_user):
-    permissions = get_permission_dict(company_user.role)
-    return permissions.get("can_view_team_tasks") or is_manager_company_user(company_user)
 
 
 class DashboardOverviewAPI(APIView):
@@ -82,35 +78,24 @@ class DashboardOverviewAPI(APIView):
         serializer = OverviewSerializer(data)
         return Response(serializer.data)
 
-
 class MyTasksAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         company_user = get_company_user(request.user)
+
         if not company_user:
             return Response({"error": "Company user not found"}, status=404)
 
         permissions = get_permission_dict(company_user.role)
-        manager_role = is_manager_company_user(company_user)
 
-        if not (
-            permissions.get("can_view_assigned_tasks")
-            or permissions.get("can_view_team_tasks")
-            or manager_role
-        ):
+        if not permissions.get("can_view_assigned_tasks"):
             return Response({"error": "Permission denied"}, status=403)
 
-        if permissions.get("can_view_team_tasks") or manager_role:
-            tasks = Task.objects.filter(company=company_user.company).filter(
-                Q(assigned_to=company_user) | Q(created_by=company_user)
-            ).distinct()
-        else:
-            tasks = Task.objects.filter(assigned_to=company_user)
+        tasks = Task.objects.filter(assigned_to=company_user)
 
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
-
 
 class MyProjectsAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -123,11 +108,11 @@ class MyProjectsAPI(APIView):
             return Response({"error": "Permission denied"}, status=403)
 
         projects = Project.objects.filter(
-            team_members__member=company_user
+            tasks__assigned_to=company_user
         ).distinct()
+
         serializer = ProjectSerializer(projects, many=True)
         return Response(serializer.data)
-
 
 class UserListAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -183,10 +168,6 @@ class AllTasksAPI(APIView):
                 assigned_to=company_user
             )
 
-        # Optional project filter
-        if project_id:
-            tasks = tasks.filter(project_id=project_id)
-
         tasks = tasks.select_related("assigned_to", "project")
 
         serializer = TaskSerializer(tasks, many=True)
@@ -220,7 +201,6 @@ class TaskAnalyticsAPI(APIView):
             }
         )
 
-
 class TeamLeaveListAPI(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -229,14 +209,14 @@ class TeamLeaveListAPI(APIView):
         if error:
             return error
 
-        leaves = LeaveRequest.objects.select_related("company_user__role", "company_user__user").filter(
-            company_user__company=company_user.company
+        leaves = LeaveRequest.objects.select_related(
+            "company_user__role", 
+            "company_user__user"
         ).filter(
-            Q(company_user__role__name__icontains="manager")
-            | Q(company_user__role__slug__icontains="manager")
-            | Q(company_user__role__name__icontains="employee")
-            | Q(company_user__role__slug__icontains="employee")
+            company_user__company=company_user.company,
+            company_user__role__slug__in=["manager", "employee"]
         ).order_by("-applied_on")
+
         serializer = LeaveSerializer(leaves, many=True)
         return Response(serializer.data)
 
@@ -274,9 +254,6 @@ class ManagerProjectsAPI(APIView):
         company_user = get_company_user(request.user)
         if not company_user:
             return Response({"error": "Company user not found"}, status=404)
-
-        if not can_view_team_scope(company_user):
-            return Response({"error": "Permission denied"}, status=403)
 
         projects = Project.objects.filter(manager=company_user)
         serializer = ProjectSerializer(projects, many=True)
@@ -325,12 +302,6 @@ class ManagerOverviewAPI(APIView):
             status__in=["PENDING", "IN_PROGRESS"],
         ).count()
 
-        team_members = ProjectTeam.objects.filter(
-            project__manager=company_user
-        ).exclude(
-            member=company_user
-        ).values("member").distinct().count()
-
         return Response(
             {
                 "total_projects": total_projects,
@@ -339,115 +310,5 @@ class ManagerOverviewAPI(APIView):
                 "pending_tasks": pending_tasks,
                 "in_progress_tasks": in_progress_tasks,
                 "overdue_tasks": overdue_tasks,
-                "team_members_count": team_members,
             }
         )
-
-
-
-class ManagerTeamMembersAPI(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        company_user = get_company_user(request.user)
-        if not company_user:
-            return Response({"error": "Company user not found"}, status=404)
-
-        if not can_view_team_scope(company_user):
-            return Response({"error": "Permission denied"}, status=403)
-
-        members = CompanyUser.objects.filter(
-            project_teams__project__manager=company_user
-        ).distinct()
-
-        serializer = UserSerializer(members, many=True)
-        return Response(serializer.data)
-
-
-
-class ProjectTeamListAPI(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, project_id):
-
-        team = ProjectTeam.objects.filter(project_id=project_id)
-
-        data = [
-            {
-                "member_id": t.member.id,
-                "name": t.member.name,
-                "email": t.member.email,
-                "role": t.role
-            }
-            for t in team
-        ]
-
-        return Response(data)
-
-class AddProjectTeamMemberAPI(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, project_id):
-
-        company_user = get_company_user(request.user)
-
-        project = Project.objects.filter(
-            id=project_id,
-            manager=company_user
-        ).first()
-
-        if not project:
-            return Response({"error": "Project not found"}, status=404)
-
-        member_id = request.data.get("member_id")
-        role = request.data.get("role")
-
-        if not member_id or not role:
-            return Response({"error": "member_id and role required"}, status=400)
-
-        member = CompanyUser.objects.filter(
-            id=member_id,
-            company=company_user.company
-        ).first()
-
-        if not member:
-            return Response({"error": "Invalid member"}, status=404)
-
-        # prevent duplicate
-        if ProjectTeam.objects.filter(project=project, member=member).exists():
-            return Response({"error": "Member already in team"}, status=400)
-
-        ProjectTeam.objects.create(
-            project=project,
-            member=member,
-            role=role
-        )
-
-        return Response({"message": "Team member added"})
-
-class RemoveProjectTeamMemberAPI(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request, project_id, member_id):
-
-        company_user = get_company_user(request.user)
-
-        project = Project.objects.filter(
-            id=project_id,
-            manager=company_user
-        ).first()
-
-        if not project:
-            return Response({"error": "Project not found"}, status=404)
-
-        team_member = ProjectTeam.objects.filter(
-            project=project,
-            member_id=member_id
-        ).first()
-
-        if not team_member:
-            return Response({"error": "Member not found"}, status=404)
-
-        team_member.delete()
-
-        return Response({"message": "Member removed from project"})
