@@ -13,9 +13,20 @@ const toneByValue = {
   HALF_DAY: "bg-yellow-100 text-yellow-700"
 };
 
-export default function StatusPill({ value }) {
-  const text = String(value || "-");
-  const classes = toneByValue[text] || "bg-slate-100 text-slate-700";
+function formatStatusText(value) {
+  const text = String(value || "-").trim();
+  if (!text || text === "-") return "-";
 
-  return <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${classes}`}>{text}</span>;
+  return text
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\w/g, (char) => char.toUpperCase());
+}
+
+export default function StatusPill({ value }) {
+  const rawText = String(value || "-").trim();
+  const toneKey = rawText.toUpperCase();
+  const classes = toneByValue[toneKey] || "bg-slate-100 text-slate-700";
+
+  return <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${classes}`}>{formatStatusText(rawText)}</span>;
 }

@@ -192,30 +192,30 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen p-4 md:p-6" style={{ background: "#eef3fb" }}>
-      <header className="mb-6 flex flex-col gap-3 rounded-2xl p-5 text-white shadow-lg md:flex-row md:items-center md:justify-between" style={{ background: "linear-gradient(135deg, #0d2148 0%, #1a3a6b 60%, #1e4d99 100%)" }}>
-        <div className="flex items-center gap-3">
-          <img src={logo} alt="WorkBridge" style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", border: "2px solid rgba(255,255,255,0.25)" }} />
+    <main className="min-h-screen p-4 md:p-6" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
+      <header className="mb-6 flex flex-col gap-3 rounded-2xl p-5 text-white shadow-lg md:flex-row md:items-center md:justify-between" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7" }}>
+        <div className="flex items-center gap-4">
+          <img src={logo} alt="WorkBridge" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(255,255,255,0.3)", boxShadow: "0 0 0 4px rgba(30,77,183,0.3)" }} />
           <div>
-            <h1 className="text-2xl font-bold">WorkBridge</h1>
-            <p className="text-sm" style={{ color: "#93c5fd" }}>Logged in as {user?.name || user?.email || "User"}</p>
+            <h1 className="text-3xl font-extrabold tracking-wide" style={{ fontFamily: "'Georgia', serif", letterSpacing: "0.01em" }}>WorkBridge</h1>
+            <p className="text-sm font-semibold" style={{ color: "#93c5fd" }}>Welcome back, {user?.name || user?.email || "User"}</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary" onClick={() => fetchEndpoint("/current-user/")}>Refresh User</button>
-          <button className="rounded-lg px-4 py-2 text-sm font-semibold transition" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff" }} onClick={logout}>Logout</button>
+          <button className="rounded-lg px-4 py-2 text-sm font-semibold transition" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff" }} onClick={() => fetchEndpoint("/current-user/")}>Refresh User</button>
+          <button className="rounded-lg px-4 py-2 text-sm font-semibold transition hover:bg-white/20" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff" }} onClick={logout}>Logout</button>
         </div>
       </header>
 
       {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
-      <section className="card mb-6">
-        <h2 className="mb-3 text-lg font-semibold">Quick API Reads</h2>
+      <section className="card mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-4 text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Quick API Reads</h2>
         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {readEndpoints.map((item) => (
             <button
               key={item.url}
-              className="btn-secondary text-left"
+              className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 transition hover:bg-blue-100 hover:border-blue-300 disabled:opacity-60"
               onClick={() => fetchEndpoint(item.url)}
               disabled={loadingKey === item.url}
             >
@@ -226,56 +226,56 @@ export default function DashboardPage() {
       </section>
 
       <section className="mb-6 grid gap-4 lg:grid-cols-2">
-        <form onSubmit={submitTask} className="card space-y-3">
-          <h3 className="text-base font-semibold">Create Task (`POST /tasks/`)</h3>
-          <input className="input" placeholder="title" value={taskForm.title} onChange={(e) => setTaskForm((s) => ({ ...s, title: e.target.value }))} required />
+        <form onSubmit={submitTask} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <h3 className="text-lg font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Create Task (`POST /tasks/`)</h3>
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="title" value={taskForm.title} onChange={(e) => setTaskForm((s) => ({ ...s, title: e.target.value }))} required />
           <textarea className="input min-h-20" placeholder="description" value={taskForm.description} onChange={(e) => setTaskForm((s) => ({ ...s, description: e.target.value }))} required />
           <div className="grid grid-cols-2 gap-2">
-            <input className="input" placeholder="assignee" value={taskForm.assigned_to} onChange={(e) => setTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required />
-            <input className="input" placeholder="project" value={taskForm.project} onChange={(e) => setTaskForm((s) => ({ ...s, project: e.target.value }))} required />
-            <input className="input" type="date" value={taskForm.due_date} onChange={(e) => setTaskForm((s) => ({ ...s, due_date: e.target.value }))} />
-            <select className="input" value={taskForm.priority} onChange={(e) => setTaskForm((s) => ({ ...s, priority: e.target.value }))}>
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="assignee" value={taskForm.assigned_to} onChange={(e) => setTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="project" value={taskForm.project} onChange={(e) => setTaskForm((s) => ({ ...s, project: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={taskForm.due_date} onChange={(e) => setTaskForm((s) => ({ ...s, due_date: e.target.value }))} />
+            <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={taskForm.priority} onChange={(e) => setTaskForm((s) => ({ ...s, priority: e.target.value }))}>
               <option>LOW</option>
               <option>MEDIUM</option>
               <option>HIGH</option>
             </select>
           </div>
-          <button className="btn-primary">Create Task</button>
+          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60">Create Task</button>
         </form>
 
-        <form onSubmit={submitProject} className="card space-y-3">
-          <h3 className="text-base font-semibold">Create Project (`POST /projects/`)</h3>
-          <input className="input" placeholder="name" value={projectForm.name} onChange={(e) => setProjectForm((s) => ({ ...s, name: e.target.value }))} required />
+        <form onSubmit={submitProject} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <h3 className="text-lg font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Create Project (`POST /projects/`)</h3>
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="name" value={projectForm.name} onChange={(e) => setProjectForm((s) => ({ ...s, name: e.target.value }))} required />
           <textarea className="input min-h-20" placeholder="description" value={projectForm.description} onChange={(e) => setProjectForm((s) => ({ ...s, description: e.target.value }))} />
           <div className="grid grid-cols-2 gap-2">
-            <input className="input" placeholder="manager" value={projectForm.manager} onChange={(e) => setProjectForm((s) => ({ ...s, manager: e.target.value }))} />
-            <input className="input" placeholder="client" value={projectForm.client} onChange={(e) => setProjectForm((s) => ({ ...s, client: e.target.value }))} />
-            <input className="input" type="date" value={projectForm.start_date} onChange={(e) => setProjectForm((s) => ({ ...s, start_date: e.target.value }))} required />
-            <input className="input" type="date" value={projectForm.end_date} onChange={(e) => setProjectForm((s) => ({ ...s, end_date: e.target.value }))} />
-            <input className="input" placeholder="budget" value={projectForm.budget} onChange={(e) => setProjectForm((s) => ({ ...s, budget: e.target.value }))} />
-            <input className="input" placeholder="actual_cost" value={projectForm.actual_cost} onChange={(e) => setProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="manager" value={projectForm.manager} onChange={(e) => setProjectForm((s) => ({ ...s, manager: e.target.value }))} />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="client" value={projectForm.client} onChange={(e) => setProjectForm((s) => ({ ...s, client: e.target.value }))} />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={projectForm.start_date} onChange={(e) => setProjectForm((s) => ({ ...s, start_date: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={projectForm.end_date} onChange={(e) => setProjectForm((s) => ({ ...s, end_date: e.target.value }))} />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="budget" value={projectForm.budget} onChange={(e) => setProjectForm((s) => ({ ...s, budget: e.target.value }))} />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="actual_cost" value={projectForm.actual_cost} onChange={(e) => setProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <select className="input" value={projectForm.status} onChange={(e) => setProjectForm((s) => ({ ...s, status: e.target.value }))}>
+            <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={projectForm.status} onChange={(e) => setProjectForm((s) => ({ ...s, status: e.target.value }))}>
               <option>ACTIVE</option>
               <option>COMPLETED</option>
               <option>ON_HOLD</option>
             </select>
-            <select className="input" value={projectForm.priority} onChange={(e) => setProjectForm((s) => ({ ...s, priority: e.target.value }))}>
+            <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={projectForm.priority} onChange={(e) => setProjectForm((s) => ({ ...s, priority: e.target.value }))}>
               <option>LOW</option>
               <option>MEDIUM</option>
               <option>HIGH</option>
               <option>CRITICAL</option>
             </select>
           </div>
-          <button className="btn-primary">Create Project</button>
+          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60">Create Project</button>
         </form>
       </section>
 
       <section className="mb-6 grid gap-4 lg:grid-cols-2">
-        <form onSubmit={submitRole} className="card space-y-3">
-          <h3 className="text-base font-semibold">Create Role (`POST /roles/`)</h3>
-          <input className="input" placeholder="Role name" value={roleForm.name} onChange={(e) => setRoleForm((s) => ({ ...s, name: e.target.value }))} required />
+        <form onSubmit={submitRole} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <h3 className="text-lg font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Create Role (`POST /roles/`)</h3>
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="Role name" value={roleForm.name} onChange={(e) => setRoleForm((s) => ({ ...s, name: e.target.value }))} required />
           <div className="grid grid-cols-2 gap-2 text-sm">
             {Object.keys(roleForm)
               .filter((k) => k !== "name")
@@ -290,46 +290,46 @@ export default function DashboardPage() {
                 </label>
               ))}
           </div>
-          <button className="btn-primary">Create Role</button>
+          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60">Create Role</button>
         </form>
 
         <div className="space-y-4">
-          <form onSubmit={submitInvite} className="card space-y-3">
-            <h3 className="text-base font-semibold">Invite User (`POST /create-user/`)</h3>
-            <input className="input" placeholder="company_id" value={inviteForm.company_id} onChange={(e) => setInviteForm((s) => ({ ...s, company_id: e.target.value }))} required />
-            <input className="input" placeholder="first_name" value={inviteForm.first_name} onChange={(e) => setInviteForm((s) => ({ ...s, first_name: e.target.value }))} required />
-            <input className="input" placeholder="email" type="email" value={inviteForm.email} onChange={(e) => setInviteForm((s) => ({ ...s, email: e.target.value }))} required />
-            <input className="input" placeholder="role_id" value={inviteForm.role_id} onChange={(e) => setInviteForm((s) => ({ ...s, role_id: e.target.value }))} required />
-            <button className="btn-primary">Send Invite</button>
+          <form onSubmit={submitInvite} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <h3 className="text-lg font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Invite User (`POST /create-user/`)</h3>
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="company_id" value={inviteForm.company_id} onChange={(e) => setInviteForm((s) => ({ ...s, company_id: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="first_name" value={inviteForm.first_name} onChange={(e) => setInviteForm((s) => ({ ...s, first_name: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="email" type="email" value={inviteForm.email} onChange={(e) => setInviteForm((s) => ({ ...s, email: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="role_id" value={inviteForm.role_id} onChange={(e) => setInviteForm((s) => ({ ...s, role_id: e.target.value }))} required />
+            <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60">Send Invite</button>
           </form>
 
-          <form onSubmit={submitLeave} className="card space-y-3">
-            <h3 className="text-base font-semibold">Apply Leave (`POST /leave/apply/`)</h3>
-            <input className="input" type="date" value={leaveForm.start_date} onChange={(e) => setLeaveForm((s) => ({ ...s, start_date: e.target.value }))} required />
-            <input className="input" type="date" value={leaveForm.end_date} onChange={(e) => setLeaveForm((s) => ({ ...s, end_date: e.target.value }))} required />
+          <form onSubmit={submitLeave} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <h3 className="text-lg font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Apply Leave (`POST /leave/apply/`)</h3>
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveForm.start_date} onChange={(e) => setLeaveForm((s) => ({ ...s, start_date: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveForm.end_date} onChange={(e) => setLeaveForm((s) => ({ ...s, end_date: e.target.value }))} required />
             <textarea className="input min-h-20" placeholder="reason" value={leaveForm.reason} onChange={(e) => setLeaveForm((s) => ({ ...s, reason: e.target.value }))} required />
-            <button className="btn-primary">Apply</button>
+            <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60">Apply</button>
           </form>
         </div>
       </section>
 
       <section className="mb-6 grid gap-4 lg:grid-cols-2">
-        <form onSubmit={submitDepartment} className="card space-y-3">
-          <h3 className="text-base font-semibold">Create Department (`POST /departments/`)</h3>
-          <input className="input" placeholder="name" value={deptForm.name} onChange={(e) => setDeptForm((s) => ({ ...s, name: e.target.value }))} required />
+        <form onSubmit={submitDepartment} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <h3 className="text-lg font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Create Department (`POST /departments/`)</h3>
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="name" value={deptForm.name} onChange={(e) => setDeptForm((s) => ({ ...s, name: e.target.value }))} required />
           <textarea className="input min-h-20" placeholder="description" value={deptForm.description} onChange={(e) => setDeptForm((s) => ({ ...s, description: e.target.value }))} />
-          <button className="btn-primary">Create Department</button>
+          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60">Create Department</button>
         </form>
 
-        <form onSubmit={submitLeavePatch} className="card space-y-3">
-          <h3 className="text-base font-semibold">Update Leave Status (`PATCH /leave/:id/status/`)</h3>
-          <input className="input" placeholder="leave_id" value={leavePatchForm.leave_id} onChange={(e) => setLeavePatchForm((s) => ({ ...s, leave_id: e.target.value }))} required />
-          <select className="input" value={leavePatchForm.status} onChange={(e) => setLeavePatchForm((s) => ({ ...s, status: e.target.value }))}>
+        <form onSubmit={submitLeavePatch} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <h3 className="text-lg font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Update Leave Status (`PATCH /leave/:id/status/`)</h3>
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" placeholder="leave_id" value={leavePatchForm.leave_id} onChange={(e) => setLeavePatchForm((s) => ({ ...s, leave_id: e.target.value }))} required />
+          <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={leavePatchForm.status} onChange={(e) => setLeavePatchForm((s) => ({ ...s, status: e.target.value }))}>
             <option>APPROVED</option>
             <option>REJECTED</option>
             <option>PENDING</option>
           </select>
-          <button className="btn-primary">Update Status</button>
+          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60">Update Status</button>
         </form>
       </section>
 
