@@ -347,18 +347,21 @@ function canAccessMenu(roleType, menuId, permissions) {
   return true;
 }
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, accent }) {
+  const color = accent || "#1d4ed8";
   return (
-    <article className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm" style={{ borderLeft: "4px solid #1d4ed8" }}>
-      <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">{label}</p>
-      <p className="mt-2 text-3xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{value ?? 0}</p>
+    <article className="rounded-xl bg-white p-4 shadow-sm" style={{ border: "1px solid #e0eaff", borderLeft: `4px solid ${color}`, position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: -12, right: -12, width: 48, height: 48, borderRadius: "50%", background: color + "12", pointerEvents: "none" }} />
+      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: color + "99" }}>{label}</p>
+      <p className="mt-2 text-3xl font-extrabold" style={{ fontFamily: "'Georgia', serif", color }}>{value ?? 0}</p>
     </article>
   );
 }
 
 function SectionTitle({ title }) {
   return (
-    <header className="mb-4">
+    <header className="mb-4 flex items-center gap-2.5">
+      <span className="inline-block h-4 w-1 rounded-full" style={{ background: "linear-gradient(180deg, #1d4ed8, #60a5fa)" }} />
       <h2 className="text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.01em" }}>{title}</h2>
     </header>
   );
@@ -2873,8 +2876,8 @@ export default function ManagerDashboardPage() {
   }, [employeeUserIds, taskProgressSourceRows, taskUserLabelById]);
 
   const renderTaskProgressSection = () => (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <SectionTitle title="Task Progress" subtitle="Employees and their assigned tasks" />
+    <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+      <SectionTitle title="Task Progress" />
       {!taskProgressRows.length ? (
         <p className="text-sm text-slate-500">No employee task mapping found.</p>
       ) : (
@@ -3046,13 +3049,13 @@ export default function ManagerDashboardPage() {
   const renderManagerProjectTeamSections = () => (
     <>
       {!managerProjectTeamGroups.length ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <SectionTitle title="Project Teams" subtitle="GET /api/projects/:project_id/team/" />
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Project Teams" />
           <p className="text-sm text-slate-500">No project teams found.</p>
         </section>
       ) : (
         managerProjectTeamGroups.map((project) => (
-          <section key={project.id || project.name} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section key={project.id || project.name} className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
             <SectionTitle title={project.name || "Project"} subtitle="GET /api/projects/:project_id/team/" />
             <p className="mb-3 text-sm text-slate-500">
               Status: {project.status || "-"} | Progress: {project.progress || "-"}
@@ -3066,23 +3069,23 @@ export default function ManagerDashboardPage() {
 
   const renderAttendanceAndLeaveSections = () => (
     <>
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <SectionTitle title="Attendance Actions" subtitle="POST /api/attendance/checkin/ and /checkout/" />
+      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <SectionTitle title="Attendance Actions" />
         <div className="flex flex-wrap gap-2">
           <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
           <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
         </div>
       </section>
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <SectionTitle title="Attendance History" subtitle="GET /api/attendance/" />
+      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <SectionTitle title="Attendance History" />
         <DataTable columns={attendanceColumns} rows={employeeAttendanceRows} emptyText="No attendance records" />
       </section>
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <SectionTitle title="Leaves Applied Status" subtitle="GET /api/my-leaves/" />
+      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <SectionTitle title="Leaves Applied Status" />
         <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leave history" />
       </section>
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <SectionTitle title="Leave Application Form" subtitle="POST /api/leave/apply/" />
+      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <SectionTitle title="Leave Application Form" />
         <form className="grid gap-3 md:grid-cols-2" onSubmit={submitLeaveApply}>
           <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
           <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
@@ -3095,15 +3098,21 @@ export default function ManagerDashboardPage() {
 
   return (
     <main className="min-h-screen" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
-      <header className="mb-0 overflow-hidden text-white shadow-lg" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7" }}>
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 md:px-6">
+      <header className="mb-0 overflow-hidden text-white shadow-xl" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7", position: "relative" }}>
+        <div style={{ position: "absolute", top: -25, right: 80, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: 8, right: 30, width: 55, height: 55, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -15, left: 300, width: 70, height: 70, borderRadius: "50%", background: "rgba(30,77,183,0.2)", pointerEvents: "none" }} />
+        <div className="relative flex flex-wrap items-center justify-between gap-3 px-6 py-4 md:px-6">
           <div className="flex items-center gap-4">
-            <div className="h-11 w-11 rounded-full overflow-hidden border-2 border-white/30" style={{ boxShadow: "0 0 0 3px rgba(30,77,183,0.4)" }}>
+            <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white/30" style={{ boxShadow: "0 0 0 4px rgba(30,77,183,0.35)" }}>
               <img src={logo} alt="WorkBridge" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
             <div>
               <h1 className="text-2xl font-extrabold tracking-wide" style={{ fontFamily: "'Georgia', serif" }}>{platformName}</h1>
-              <p className="text-xs font-semibold" style={{ color: "#93c5fd" }}>{dashboardCompanyInfo.name || "Company Dashboard"}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                <p className="text-xs font-semibold" style={{ color: "#93c5fd" }}>{dashboardCompanyInfo.name || "Company Dashboard"}</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -3113,13 +3122,25 @@ export default function ManagerDashboardPage() {
       </header>
 
       <div className="grid gap-0 lg:grid-cols-[260px_1fr]" style={{ minHeight: "calc(100vh - 67px)" }}>
-        <aside className="border-r border-blue-100/50 p-5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto" style={{ background: "rgba(219, 234, 254, 0.45)", backdropFilter: "blur(8px)" }}>
+        <aside className="border-r border-blue-100/50 p-5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto" style={{ background: "rgba(219, 234, 254, 0.5)", backdropFilter: "blur(10px)" }}>
           <div className="mb-5 pb-5" style={{ borderBottom: "1px solid rgba(30,64,175,0.15)" }}>
-            <div className="rounded-xl px-4 py-3" style={{ background: "linear-gradient(135deg, #0d2760 0%, #1e3a8a 100%)" }}>
-              <p className="text-sm font-bold mb-0.5" style={{ color: "rgba(191,219,254,0.85)" }}>Hello!</p>
-              <p className="font-extrabold text-white text-xl leading-tight" style={{ fontFamily: "'Georgia', serif" }}>{dashboardUserName}</p>
-              <span className="inline-block mt-2 rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "#bfdbfe", letterSpacing: "0.06em" }}>{dashboardUserRole}</span>
-            </div>
+            {(() => {
+              const sidebarRoleStyles = {
+                owner: { bg: "linear-gradient(135deg, #0a1a3e 0%, #1a3a8f 100%)", greet: "rgba(96,165,250,0.9)", badge: "rgba(96,165,250,0.2)", badgeText: "#93c5fd" },
+                manager: { bg: "linear-gradient(135deg, #0d2760 0%, #1d4ed8 100%)", greet: "rgba(147,197,253,0.9)", badge: "rgba(147,197,253,0.2)", badgeText: "#bfdbfe" },
+                hr: { bg: "linear-gradient(135deg, #1e3a5f 0%, #1565c0 100%)", greet: "rgba(165,216,255,0.9)", badge: "rgba(165,216,255,0.2)", badgeText: "#a5d8ff" },
+                employee: { bg: "linear-gradient(135deg, #1a3a6b 0%, #2563eb 100%)", greet: "rgba(191,219,254,0.9)", badge: "rgba(191,219,254,0.2)", badgeText: "#bfdbfe" },
+                client: { bg: "linear-gradient(135deg, #0c2340 0%, #1a4a8f 100%)", greet: "rgba(125,211,252,0.9)", badge: "rgba(125,211,252,0.2)", badgeText: "#7dd3fc" },
+              };
+              const s = sidebarRoleStyles[roleType] || sidebarRoleStyles.employee;
+              return (
+                <div className="rounded-xl px-4 py-3" style={{ background: s.bg }}>
+                  <p className="text-sm font-bold mb-0.5" style={{ color: s.greet }}>Hello!</p>
+                  <p className="font-extrabold text-white text-xl leading-tight" style={{ fontFamily: "'Georgia', serif" }}>{dashboardUserName}</p>
+                  <span className="inline-block mt-2 rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: s.badge, color: s.badgeText, letterSpacing: "0.06em" }}>{dashboardUserRole}</span>
+                </div>
+              );
+            })()}
           </div>
           <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-blue-900/40">Navigation</p>
           <div className="space-y-1.5">
@@ -3130,13 +3151,15 @@ export default function ManagerDashboardPage() {
                 style={activeMenu === item.id ? {
                   background: "linear-gradient(135deg, #1e3a8a, #1d4ed8)",
                   color: "#fff",
-                  boxShadow: "0 2px 8px rgba(30,58,138,0.3)"
+                  boxShadow: "0 2px 8px rgba(30,58,138,0.3)",
+                  borderLeft: "3px solid #60a5fa"
                 } : {
                   color: "#1e3a8a",
-                  background: "transparent"
+                  background: "transparent",
+                  borderLeft: "3px solid transparent"
                 }}
-                onMouseEnter={(e) => { if (activeMenu !== item.id) e.currentTarget.style.background = "rgba(30,58,138,0.08)"; }}
-                onMouseLeave={(e) => { if (activeMenu !== item.id) e.currentTarget.style.background = "transparent"; }}
+                onMouseEnter={(e) => { if (activeMenu !== item.id) { e.currentTarget.style.background = "rgba(30,58,138,0.08)"; e.currentTarget.style.borderLeft = "3px solid #93c5fd"; } }}
+                onMouseLeave={(e) => { if (activeMenu !== item.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "3px solid transparent"; } }}
                 onClick={() => { setActiveMenu(item.id); persistActiveMenu(item.id); }}
               >
                 {item.label}
@@ -3146,33 +3169,43 @@ export default function ManagerDashboardPage() {
         </aside>
 
         <section className="space-y-5 p-5 md:p-6">
-          <div className="rounded-2xl p-4 text-white shadow-sm" style={{ background: "linear-gradient(135deg, #0d2760 0%, #1e3a8a 100%)" }}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                {dashboardCompanyInfo.logo ? (
-                  <img
-                    src={dashboardCompanyInfo.logo}
-                    alt={`${dashboardCompanyInfo.name} logo`}
-                    className="h-11 w-11 rounded-full border-2 border-white/30 bg-white/10 object-cover"
-                  />
-                ) : (
-                  <div className="h-11 w-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center">
-                    <span className="text-white font-bold">{(dashboardCompanyInfo.name || "C").charAt(0)}</span>
+          {(() => {
+            const roleConfigs = {
+              owner: { gradient: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 55%, #1a3a8f 100%)", accent: "#60a5fa", badge: "rgba(96,165,250,0.2)", label: "Owner Portal", icon: "👑" },
+              manager: { gradient: "linear-gradient(135deg, #0d2760 0%, #1e3a8a 80%, #1d4ed8 100%)", accent: "#93c5fd", badge: "rgba(147,197,253,0.2)", label: "Manager Portal", icon: "🗂️" },
+              hr: { gradient: "linear-gradient(135deg, #1e3a5f 0%, #1a4a7a 60%, #1565c0 100%)", accent: "#a5d8ff", badge: "rgba(165,216,255,0.2)", label: "HR Portal", icon: "👥" },
+              employee: { gradient: "linear-gradient(135deg, #1a3a6b 0%, #1e4080 60%, #2563eb 100%)", accent: "#bfdbfe", badge: "rgba(191,219,254,0.2)", label: "Employee Portal", icon: "💼" },
+              client: { gradient: "linear-gradient(135deg, #0c2340 0%, #103060 55%, #1a4a8f 100%)", accent: "#7dd3fc", badge: "rgba(125,211,252,0.2)", label: "Client Portal", icon: "🏢" },
+            };
+            const cfg = roleConfigs[roleType] || roleConfigs.employee;
+            return (
+              <div className="rounded-2xl text-white shadow-md overflow-hidden" style={{ background: cfg.gradient, position: "relative" }}>
+                <div style={{ position: "absolute", top: -20, right: 40, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", bottom: -10, right: 140, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+                <div className="relative p-5 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {dashboardCompanyInfo.logo ? (
+                      <img src={dashboardCompanyInfo.logo} alt={dashboardCompanyInfo.name} className="h-12 w-12 rounded-full object-cover" style={{ border: "2px solid rgba(255,255,255,0.3)" }} />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full flex items-center justify-center text-xl" style={{ background: "rgba(255,255,255,0.12)", border: "2px solid rgba(255,255,255,0.25)" }}>
+                        {cfg.icon}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-widest mb-0.5" style={{ color: cfg.accent, opacity: 0.8 }}>{dashboardUserRole} Portal</p>
+                      <p className="text-xl font-extrabold leading-tight" style={{ fontFamily: "'Georgia', serif" }}>{dashboardCompanyInfo.name || "WorkBridge"}</p>
+                    </div>
                   </div>
-                )}
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest opacity-60">Company</p>
-                  <p className="text-xl font-extrabold" style={{ fontFamily: "'Georgia', serif" }}>{dashboardCompanyInfo.name || "WorkBridge"}</p>
+                  <div className="text-right">
+                    <p className="text-lg font-extrabold" style={{ fontFamily: "'Georgia', serif" }}>{dashboardUserName}</p>
+                    <span className="inline-flex mt-1 rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: cfg.badge, color: cfg.accent, border: `1px solid ${cfg.accent}40` }}>
+                      {dashboardUserRole}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-lg font-extrabold" style={{ fontFamily: "'Georgia', serif" }}>{dashboardUserName}</p>
-                <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "rgba(255,255,255,0.15)", color: "#bfdbfe" }}>
-                  {dashboardUserRole}
-                </span>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
           {errorText ? <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{errorText}</p> : null}
           {noticeText ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{noticeText}</p> : null}
           {inviteLink ? (
@@ -3183,19 +3216,19 @@ export default function ManagerDashboardPage() {
           ) : null}
           {activeMenu === "owner-dashboard" ? (
             <>
-              <SectionTitle title="Owner Overview" subtitle="GET /api/overview/" />
+              <SectionTitle title="Owner Overview" />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="Total Clients" value={ownerOverview.total_clients} />
-                <StatCard label="Total Employees" value={ownerOverview.total_employees} />
-                <StatCard label="Total Projects" value={ownerOverview.total_projects} />
-                <StatCard label="Total Tasks" value={ownerOverview.total_tasks} />
-                <StatCard label="Completed" value={ownerOverview.completed_tasks} />
-                <StatCard label="Pending" value={ownerOverview.pending_tasks} />
-                <StatCard label="Completion %" value={ownerOverview.completion_rate} />
-                <StatCard label="Overdue" value={ownerOverview.overdue_tasks} />
+                <StatCard label="Total Clients" value={ownerOverview.total_clients} accent="#1d4ed8" />
+                <StatCard label="Total Employees" value={ownerOverview.total_employees} accent="#1d4ed8" />
+                <StatCard label="Total Projects" value={ownerOverview.total_projects} accent="#2563eb" />
+                <StatCard label="Total Tasks" value={ownerOverview.total_tasks} accent="#2563eb" />
+                <StatCard label="Completed" value={ownerOverview.completed_tasks} accent="#16a34a" />
+                <StatCard label="Pending" value={ownerOverview.pending_tasks} accent="#d97706" />
+                <StatCard label="Completion %" value={ownerOverview.completion_rate} accent="#0891b2" />
+                <StatCard label="Overdue" value={ownerOverview.overdue_tasks} accent="#dc2626" />
               </div>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="All Tasks" subtitle="Click a task row to open full details" />
+              <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe", borderTop: "3px solid #2563eb" }}>
+                <SectionTitle title="All Tasks" />
                 <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
@@ -3203,8 +3236,8 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "owner-roles" || activeMenu === "manager-roles" || activeMenu === "hr-roles" ? (
             <>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Role" subtitle="POST /api/roles/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="New Role" />
                 <form className="space-y-3" onSubmit={submitCreateRole}>
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1 text-sm text-slate-700">
@@ -3231,8 +3264,8 @@ export default function ManagerDashboardPage() {
                   <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
                 </form>
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Edit Role" subtitle="PATCH /api/roles/:id/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Edit Role" />
                 <form className="space-y-3" onSubmit={submitUpdateRole}>
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1 text-sm text-slate-700">
@@ -3268,8 +3301,8 @@ export default function ManagerDashboardPage() {
                   <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Role"}</button>
                 </form>
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Role List" subtitle="GET /api/roles/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Role List" />
                 <DataTable columns={roleColumns} rows={roles} emptyText="No roles" />
               </section>
             </>
@@ -3277,8 +3310,8 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "owner-users" ? (
             <>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New User" subtitle="POST /api/create-user/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="New User" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Company</span>
@@ -3303,8 +3336,8 @@ export default function ManagerDashboardPage() {
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
                 </form>
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" subtitle="GET /api/users/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="User List" />
                 <DataTable columns={userListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
             </>
@@ -3312,8 +3345,8 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "manager-users" ? (
             <>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New User" subtitle="POST /api/create-user/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="New User" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Company</span>
@@ -3344,8 +3377,8 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Managers" value={managerUserMetrics.managers} />
                 <StatCard label="Employees" value={managerUserMetrics.employees} />
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" subtitle="GET /api/users/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="User List" />
                 <DataTable columns={managerUserListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
             </>
@@ -3358,8 +3391,8 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={ownerProjectMetrics.completed_projects} />
                 <StatCard label="On Hold" value={ownerProjectMetrics.on_hold_projects} />
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Project" subtitle="POST /api/projects/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="New Project" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
@@ -3375,16 +3408,16 @@ export default function ManagerDashboardPage() {
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
                 </form>
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="All Projects" subtitle="GET /api/all-projects/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="All Projects" />
                 <DataTable columns={managerProjectColumns} rows={ownerProjectsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
             </>
           ) : null}
           {activeMenu === "owner-tasks" ? (
             <>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Task" subtitle="POST /api/tasks/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="New Task" />
                 {permissions.can_assign_task ? (
                   <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
@@ -3410,15 +3443,15 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Overdue" value={ownerTaskMetrics.overdue_tasks} />
               </section>
               {renderTaskProgressSection()}
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="All Tasks" subtitle="GET /api/all-tasks/ + GET /api/task-analytics/" />
+              <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe", borderTop: "3px solid #2563eb" }}>
+                <SectionTitle title="All Tasks" />
                 <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
           ) : null}
           {activeMenu === "owner-company" ? (
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <SectionTitle title="Company Settings" subtitle="GET /api/companies/ and PUT /api/companies/:id/" />
+            <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+              <SectionTitle title="Company Settings" />
               <form className="grid gap-3 md:grid-cols-2" onSubmit={submitUpdateCompany}>
                 <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Company</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.id} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, id: e.target.value }))} required /></label>
                 <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.name} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, name: e.target.value }))} required /></label>
@@ -3436,27 +3469,72 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "manager-dashboard" ? (
             <>
-              <SectionTitle title="Manager Overview" subtitle="GET /api/manager-overview/" />
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="Total Projects" value={managerOverviewCards.total_projects} />
-                <StatCard label="Total Tasks" value={managerOverviewCards.total_tasks} />
-                <StatCard label="Completed" value={managerOverviewCards.completed_tasks} />
-                <StatCard label="Pending" value={managerOverviewCards.pending_tasks} />
-                <StatCard label="In Progress" value={managerOverviewCards.in_progress_tasks} />
-                <StatCard label="Overdue" value={managerOverviewCards.overdue_tasks} />
-                <StatCard label="Users" value={managerOverviewCards.team_members_count} />
+              {/* Scorecard strip */}
+              <div className="rounded-2xl overflow-hidden shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: "linear-gradient(90deg, #0d2760, #1e3a8a)" }}>
+                  <span className="text-sm font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>Manager Overview</span>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)", color: "#bfdbfe" }}>Live</span>
+                </div>
+                <div className="grid grid-cols-4 divide-x bg-white" style={{ borderTop: "1px solid #dbeafe", divideColor: "#dbeafe" }}>
+                  {[
+                    { label: "Projects", value: managerOverviewCards.total_projects, color: "#2563eb" },
+                    { label: "Total Tasks", value: managerOverviewCards.total_tasks, color: "#1d4ed8" },
+                    { label: "Completed", value: managerOverviewCards.completed_tasks, color: "#16a34a" },
+                    { label: "Team Size", value: managerOverviewCards.team_members_count, color: "#7c3aed" },
+                  ].map((item) => (
+                    <div key={item.label} className="flex flex-col items-center py-4 px-2">
+                      <span className="text-3xl font-extrabold" style={{ fontFamily: "'Georgia', serif", color: item.color }}>{item.value ?? 0}</span>
+                      <span className="mt-1 text-xs font-bold uppercase tracking-widest" style={{ color: item.color + "99" }}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 divide-x bg-slate-50" style={{ borderTop: "1px solid #dbeafe" }}>
+                  {[
+                    { label: "Pending", value: managerOverviewCards.pending_tasks, color: "#d97706" },
+                    { label: "In Progress", value: managerOverviewCards.in_progress_tasks, color: "#0891b2" },
+                    { label: "Overdue", value: managerOverviewCards.overdue_tasks, color: "#dc2626" },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center gap-3 px-5 py-3">
+                      <span className="text-2xl font-extrabold" style={{ color: item.color, fontFamily: "'Georgia', serif" }}>{item.value ?? 0}</span>
+                      <span className="text-xs font-bold uppercase tracking-widest" style={{ color: item.color + "bb" }}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="My Projects" subtitle="Projects where you are the manager" />
-                <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
-              </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="My Tasks" subtitle="Tasks assigned to manager" />
-                <DataTable columns={dashboardTaskListColumns} rows={managerOwnTaskRows} emptyText="No tasks assigned to manager" onRowClick={openTaskDetails} />
-              </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="My Leaves" subtitle="GET /api/my-leaves/" />
-                <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leaves" />
+
+              {/* Swim lane layout: Projects | Tasks side by side */}
+              <div className="grid gap-4 lg:grid-cols-2">
+                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #2563eb15, #2563eb08)", borderBottom: "2px solid #2563eb" }}>
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2563eb" }} />
+                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Projects</span>
+                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{managerProjectRowsWithProgress.length}</span>
+                  </div>
+                  <div className="p-4">
+                    <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
+                  </div>
+                </section>
+                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #0891b215, #0891b208)", borderBottom: "2px solid #0891b2" }}>
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#0891b2" }} />
+                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Tasks</span>
+                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#cffafe", color: "#0891b2" }}>{managerOwnTaskRows.length}</span>
+                  </div>
+                  <div className="p-4">
+                    <DataTable columns={dashboardTaskListColumns} rows={managerOwnTaskRows} emptyText="No tasks assigned to manager" onRowClick={openTaskDetails} />
+                  </div>
+                </section>
+              </div>
+
+              {/* Leaves full width */}
+              <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #d9770615, #d9770608)", borderBottom: "2px solid #d97706" }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#d97706" }} />
+                  <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Leaves</span>
+                </div>
+                <div className="p-4">
+                  <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leaves" />
+                </div>
               </section>
             </>
           ) : null}
@@ -3468,8 +3546,8 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerProjectMetrics.completed_projects} />
                 <StatCard label="On Hold" value={managerProjectMetrics.on_hold_projects} />
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Project" subtitle="POST /api/projects/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="New Project" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
@@ -3485,8 +3563,8 @@ export default function ManagerDashboardPage() {
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
                 </form>
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Project List" subtitle="Click a project to open full details and edit" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Project List" />
                 <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
             </>
@@ -3498,8 +3576,8 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerTaskMetrics.completed_tasks} />
                 <StatCard label="Overdue" value={managerTaskMetrics.overdue_tasks} />
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Task" subtitle="POST /api/tasks/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="New Task" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
@@ -3515,29 +3593,77 @@ export default function ManagerDashboardPage() {
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>Save Task</button>
                 </form>
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Task List" subtitle="GET /api/all-tasks/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Task List" />
                 <DataTable columns={dashboardTaskListColumns} rows={managerVisibleTaskRows} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
           ) : null}
           {activeMenu === "employee-dashboard" ? (
             <>
-              <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                <StatCard label="Total Tasks" value={employeeDashboardMetrics.total_tasks} />
-                <StatCard label="Completed" value={employeeDashboardMetrics.completed_tasks} />
-                <StatCard label="Pending" value={employeeDashboardMetrics.pending_tasks} />
-                <StatCard label="Overdue" value={employeeDashboardMetrics.overdue_tasks} />
-                <StatCard label="Total Projects" value={employeeDashboardMetrics.total_projects} />
-              </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Projects List" subtitle="Projects linked to assigned work" />
-                <DataTable columns={projectColumns} rows={employeeAssignedProjectRows} emptyText="No assigned projects" />
-              </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Assigned Tasks" subtitle="Click a task row to open full details and edit" />
-                <DataTable columns={dashboardTaskListColumns} rows={employeeTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
-              </section>
+              {/* Personal progress banner */}
+              <div className="rounded-2xl overflow-hidden shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-5 py-3 flex items-center justify-between" style={{ background: "linear-gradient(135deg, #1a3a6b 0%, #2563eb 100%)" }}>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#bfdbfe" }}>My Work Summary</p>
+                    <p className="text-lg font-extrabold text-white mt-0.5" style={{ fontFamily: "'Georgia', serif" }}>
+                      {employeeDashboardMetrics.completed_tasks} of {employeeDashboardMetrics.total_tasks} tasks completed
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-4xl font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>
+                      {employeeDashboardMetrics.total_tasks > 0 ? Math.round((employeeDashboardMetrics.completed_tasks / employeeDashboardMetrics.total_tasks) * 100) : 0}%
+                    </p>
+                    <p className="text-xs font-semibold mt-0.5" style={{ color: "#93c5fd" }}>completion rate</p>
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div className="h-2 bg-blue-100">
+                  <div className="h-2 rounded-r-full transition-all" style={{
+                    width: `${employeeDashboardMetrics.total_tasks > 0 ? Math.round((employeeDashboardMetrics.completed_tasks / employeeDashboardMetrics.total_tasks) * 100) : 0}%`,
+                    background: "linear-gradient(90deg, #2563eb, #16a34a)"
+                  }} />
+                </div>
+                {/* Mini stat strip */}
+                <div className="grid grid-cols-4 divide-x bg-white py-2" style={{ borderTop: "1px solid #f0f5ff" }}>
+                  {[
+                    { label: "Pending", value: employeeDashboardMetrics.pending_tasks, color: "#d97706" },
+                    { label: "In Progress", value: (employeeDashboardMetrics.total_tasks - employeeDashboardMetrics.completed_tasks - employeeDashboardMetrics.pending_tasks), color: "#0891b2" },
+                    { label: "Overdue", value: employeeDashboardMetrics.overdue_tasks, color: "#dc2626" },
+                    { label: "Projects", value: employeeDashboardMetrics.total_projects, color: "#7c3aed" },
+                  ].map((item) => (
+                    <div key={item.label} className="flex flex-col items-center py-2">
+                      <span className="text-xl font-extrabold" style={{ color: item.color, fontFamily: "'Georgia', serif" }}>{item.value ?? 0}</span>
+                      <span className="text-xs font-bold uppercase tracking-widest" style={{ color: item.color + "99" }}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Two column: projects left, tasks right */}
+              <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #7c3aed15, #7c3aed08)", borderBottom: "2px solid #7c3aed" }}>
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#7c3aed" }} />
+                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Projects</span>
+                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#ede9fe", color: "#7c3aed" }}>{employeeAssignedProjectRows.length}</span>
+                  </div>
+                  <div className="p-4">
+                    <DataTable columns={projectColumns} rows={employeeAssignedProjectRows} emptyText="No assigned projects" />
+                  </div>
+                </section>
+
+                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #2563eb15, #2563eb08)", borderBottom: "2px solid #2563eb" }}>
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2563eb" }} />
+                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Tasks</span>
+                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{employeeTasks.length}</span>
+                  </div>
+                  <div className="p-4">
+                    <DataTable columns={dashboardTaskListColumns} rows={employeeTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
+                  </div>
+                </section>
+              </div>
             </>
           ) : null}
 
@@ -3545,62 +3671,123 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "hr-dashboard" ? (
             <>
-              <SectionTitle title="HR Overview" subtitle="GET /api/hr-dashboard/" />
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="Total Employees" value={hrOverview.total_employees} />
-                <StatCard label="Present" value={hrOverview.attendance?.present} />
-                <StatCard label="Absent" value={hrOverview.attendance?.absent} />
-                <StatCard label="Half Day" value={hrOverview.attendance?.half_day} />
-                <StatCard label="On Leave" value={hrOverview.attendance?.on_leave} />
-                <StatCard label="Attendance %" value={hrOverview.attendance?.attendance_percentage} />
-                <StatCard label="Approved Leaves" value={hrOverview.leave_summary?.approved} />
-                <StatCard label="Pending Leaves" value={hrOverview.leave_summary?.pending} />
+              {/* HR Command strip */}
+              <div className="rounded-2xl overflow-hidden shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: "linear-gradient(90deg, #1e3a5f, #1565c0)" }}>
+                  <span className="text-sm font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>HR Overview</span>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)", color: "#a5d8ff" }}>{hrOverview.total_employees ?? 0} Employees</span>
+                </div>
+                {/* Attendance % bar */}
+                <div className="px-5 pt-3 pb-1 bg-white">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#1d4ed899" }}>Attendance Rate</span>
+                    <span className="text-sm font-extrabold" style={{ color: "#1d4ed8" }}>{hrOverview.attendance?.attendance_percentage ?? 0}%</span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-blue-100 overflow-hidden">
+                    <div className="h-2.5 rounded-full transition-all" style={{
+                      width: `${hrOverview.attendance?.attendance_percentage ?? 0}%`,
+                      background: "linear-gradient(90deg, #16a34a, #0891b2)"
+                    }} />
+                  </div>
+                </div>
+                {/* Two panels */}
+                <div className="grid grid-cols-2 divide-x bg-white mt-2" style={{ borderTop: "1px solid #f0f5ff" }}>
+                  {/* Attendance panel */}
+                  <div className="p-4">
+                    <p className="text-xs font-extrabold uppercase tracking-widest mb-3" style={{ color: "#1d4ed899" }}>Today's Attendance</p>
+                    <div className="space-y-2">
+                      {[
+                        { label: "Present", value: hrOverview.attendance?.present, color: "#16a34a", bg: "#f0fdf4" },
+                        { label: "Absent", value: hrOverview.attendance?.absent, color: "#dc2626", bg: "#fef2f2" },
+                        { label: "Half Day", value: hrOverview.attendance?.half_day, color: "#d97706", bg: "#fffbeb" },
+                        { label: "On Leave", value: hrOverview.attendance?.on_leave, color: "#0891b2", bg: "#ecfeff" },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: item.bg }}>
+                          <span className="text-xs font-bold" style={{ color: item.color }}>{item.label}</span>
+                          <span className="text-base font-extrabold" style={{ color: item.color, fontFamily: "'Georgia', serif" }}>{item.value ?? 0}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Leave panel */}
+                  <div className="p-4">
+                    <p className="text-xs font-extrabold uppercase tracking-widest mb-3" style={{ color: "#1d4ed899" }}>Leave Summary</p>
+                    <div className="space-y-2">
+                      {[
+                        { label: "Approved", value: hrOverview.leave_summary?.approved, color: "#16a34a", bg: "#f0fdf4" },
+                        { label: "Pending", value: hrOverview.leave_summary?.pending, color: "#d97706", bg: "#fffbeb" },
+                        { label: "Rejected", value: hrOverview.leave_summary?.rejected, color: "#dc2626", bg: "#fef2f2" },
+                        { label: "Total Staff", value: hrOverview.total_employees, color: "#1d4ed8", bg: "#eff6ff" },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: item.bg }}>
+                          <span className="text-xs font-bold" style={{ color: item.color }}>{item.label}</span>
+                          <span className="text-base font-extrabold" style={{ color: item.color, fontFamily: "'Georgia', serif" }}>{item.value ?? 0}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Employee" subtitle="POST /api/create-user/" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Company</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
-                      <option value="">Select company</option>
-                      {companyOptions.map((companyOption) => (
-                        <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Role</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
-                      <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
-                      {createUserRoleOptions.map((roleOption) => (
-                        <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save Employee"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" subtitle="GET /api/users/" />
-                <DataTable columns={userListColumns} rows={hrVisibleUsers} emptyText="No users" onRowClick={openUserDetails} />
-              </section>
+
+              {/* Add Employee + User List side by side */}
+              <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #16a34a15, #16a34a08)", borderBottom: "2px solid #16a34a" }}>
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#16a34a" }} />
+                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Add Employee</span>
+                  </div>
+                  <div className="p-4">
+                    <form className="space-y-3" onSubmit={submitCreateUser}>
+                      <label className="block space-y-1 text-sm text-slate-700">
+                        <span className="font-semibold text-blue-900">Company</span>
+                        <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
+                          <option value="">Select company</option>
+                          {companyOptions.map((companyOption) => (
+                            <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block space-y-1 text-sm text-slate-700"><span className="font-semibold text-blue-900">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
+                      <label className="block space-y-1 text-sm text-slate-700"><span className="font-semibold text-blue-900">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
+                      <label className="block space-y-1 text-sm text-slate-700">
+                        <span className="font-semibold text-blue-900">Role</span>
+                        <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
+                          <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
+                          {createUserRoleOptions.map((roleOption) => (
+                            <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <button className="w-full rounded-lg py-2.5 text-sm font-extrabold text-white transition disabled:opacity-60" style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }} disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Add Employee"}</button>
+                    </form>
+                  </div>
+                </section>
+                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #1d4ed815, #1d4ed808)", borderBottom: "2px solid #1d4ed8" }}>
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#1d4ed8" }} />
+                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Employee Directory</span>
+                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{hrVisibleUsers.length}</span>
+                  </div>
+                  <div className="p-4">
+                    <DataTable columns={userListColumns} rows={hrVisibleUsers} emptyText="No users" onRowClick={openUserDetails} />
+                  </div>
+                </section>
+              </div>
             </>
           ) : null}
 
           {activeMenu === "hr-attendance" ? (
             <>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Attendance List" subtitle="GET /api/attendance/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Attendance List" />
                 <DataTable columns={hrAttendanceColumns} rows={attendanceRecords} emptyText="No attendance records" />
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Leave Approvals" subtitle="Review employee leaves" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Leave Approvals" />
                 <DataTable columns={hrLeaveApprovalColumns} rows={hrLeaves} emptyText="No leave requests" />
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Performance Review" subtitle="POST /api/review/:employee_id/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Performance Review" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitPerformanceReview}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Employee</span>
@@ -3633,8 +3820,8 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "hr-departments" ? (
             <>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="Department List" subtitle="GET /api/departments/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Department List" />
                 <DataTable
                   columns={[
                     { key: "name", label: "Name" },
@@ -3644,8 +3831,8 @@ export default function ManagerDashboardPage() {
                   emptyText="No departments"
                 />
               </section>
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Department" subtitle="POST /api/departments/" />
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="New Department" />
                 <form className="space-y-3" onSubmit={submitCreateDepartment}>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={departmentForm.name} onChange={(e) => setDepartmentForm((s) => ({ ...s, name: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Description</span><textarea className="input min-h-24" value={departmentForm.description} onChange={(e) => setDepartmentForm((s) => ({ ...s, description: e.target.value }))} /></label>
@@ -3656,167 +3843,80 @@ export default function ManagerDashboardPage() {
           ) : null}
 
           {activeMenu === "client-dashboard" ? (
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <SectionTitle title="Client Dashboard" subtitle="GET /api/client-projects/" />
-              <DataTable columns={projectColumns} rows={clientProjectsWithProgress} emptyText="No client projects" />
-            </section>
+            <>
+              {/* Client portfolio header */}
+              <div className="rounded-2xl overflow-hidden shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-6 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, #0c2340 0%, #1a4a8f 100%)" }}>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "#7dd3fc" }}>Project Portfolio</p>
+                    <p className="text-xl font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>Your Active Projects</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-4xl font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>{clientProjectsWithProgress.length}</span>
+                    <p className="text-xs font-semibold mt-0.5" style={{ color: "#7dd3fc" }}>total projects</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project cards grid */}
+              {clientProjectsWithProgress.length === 0 ? (
+                <div className="rounded-2xl bg-white p-10 text-center shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                  <p className="text-4xl mb-3">🏢</p>
+                  <p className="text-base font-bold text-blue-900">No projects assigned yet</p>
+                  <p className="text-sm text-slate-500 mt-1">Your projects will appear here once assigned.</p>
+                </div>
+              ) : (
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-2">
+                  {clientProjectsWithProgress.map((project) => {
+                    const status = String(project?.status || "").toUpperCase();
+                    const statusColors = {
+                      ACTIVE: { bg: "#f0fdf4", text: "#16a34a", border: "#16a34a" },
+                      COMPLETED: { bg: "#eff6ff", text: "#2563eb", border: "#2563eb" },
+                      ON_HOLD: { bg: "#fffbeb", text: "#d97706", border: "#d97706" },
+                    };
+                    const sc = statusColors[status] || { bg: "#f8fafc", text: "#64748b", border: "#94a3b8" };
+                    const progress = project?.progress || "0%";
+                    const progressNum = parseInt(String(progress).replace("%", "").split("(")[0].trim()) || 0;
+                    return (
+                      <article
+                        key={project.id}
+                        className="rounded-2xl bg-white overflow-hidden shadow-sm cursor-pointer transition-all hover:shadow-md"
+                        style={{ border: "1px solid #dbeafe", borderTop: `3px solid ${sc.border}` }}
+                        onClick={() => openProjectDetails && openProjectDetails(project)}
+                      >
+                        <div className="p-6">
+                          <div className="flex items-start justify-between gap-2 mb-4">
+                            <h3 className="font-extrabold text-blue-900 text-lg leading-tight" style={{ fontFamily: "'Georgia', serif" }}>{project.name || "Project"}</h3>
+                            <span className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: sc.bg, color: sc.text }}>{status || "—"}</span>
+                          </div>
+                          {project.description ? (
+                            <p className="text-sm text-slate-500 mb-4 line-clamp-3">{project.description}</p>
+                          ) : null}
+                          <div className="space-y-2 text-sm text-slate-500 mb-4">
+                            {project.start_date ? <p>📅 Start: <span className="font-semibold text-slate-700">{project.start_date}</span></p> : null}
+                            {project.end_date ? <p>🏁 Due: <span className="font-semibold text-slate-700">{project.end_date}</span></p> : null}
+                            {project.priority ? <p>⚡ Priority: <span className="font-semibold text-slate-700">{project.priority}</span></p> : null}
+                          </div>
+                          {/* Progress bar */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-bold text-blue-900/50 uppercase tracking-widest">Progress</span>
+                              <span className="text-xs font-extrabold" style={{ color: sc.border }}>{progress}</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-blue-100 overflow-hidden">
+                              <div className="h-2 rounded-full transition-all" style={{ width: `${Math.min(progressNum, 100)}%`, background: sc.border }} />
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           ) : null}
         </section>
       </div>
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
