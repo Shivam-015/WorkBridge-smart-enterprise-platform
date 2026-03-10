@@ -1,3 +1,18 @@
+function formatCellValue(value) {
+  if (value === null || value === undefined || value === "") return "-";
+
+  const text = String(value);
+  if (/^https?:\/\//i.test(text) || text.includes("@")) return text;
+  if (text.includes("_") || /^[A-Z][A-Z0-9 ]+$/.test(text)) {
+    return text
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\w/g, (char) => char.toUpperCase());
+  }
+
+  return text;
+}
+
 export default function DataTable({ columns, rows, emptyText = "No data available", onRowClick }) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return (
@@ -44,7 +59,7 @@ export default function DataTable({ columns, rows, emptyText = "No data availabl
               <td className="whitespace-nowrap px-3 py-2 align-top text-slate-700">{rowIndex + 1}</td>
               {visibleColumns.map((column) => (
                 <td key={`${row.id || rowIndex}-${column.key}`} className="max-w-xs px-3 py-2 align-top text-slate-700">
-                  {column.render ? column.render(row[column.key], row, rowIndex) : String(row[column.key] ?? "-")}
+                  {column.render ? column.render(row[column.key], row, rowIndex) : formatCellValue(row[column.key])}
                 </td>
               ))}
             </tr>

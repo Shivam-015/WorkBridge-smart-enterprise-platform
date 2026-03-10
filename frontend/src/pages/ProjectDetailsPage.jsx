@@ -8,6 +8,7 @@ import {
   extractError,
   formatValue,
   getEntityId,
+  humanizeLabel,
   mergeRowsById,
   numberOrNull,
   toArray
@@ -47,9 +48,7 @@ export default function ProjectDetailsPage() {
 
   const [project, setProject] = useState(routeProject);
   const [form, setForm] = useState(makeProjectForm(routeProject || {}));
-  const [teamRows, setTeamRows] = useState([]);
   const [users, setUsers] = useState([]);
-  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(!routeProject);
   const [saving, setSaving] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -79,16 +78,10 @@ export default function ProjectDetailsPage() {
       setLoading(!routeProject);
       setErrorText("");
 
-      const [usersRes, teamRes, projectTeamRes] = await Promise.all([
-        fetchOptional("/users/", []),
-        fetchOptional("/team/", []),
-        fetchOptional(`/projects/${targetId}/team/`, [])
-      ]);
+      const usersRes = await fetchOptional("/users/", []);
 
       if (!active) return;
       setUsers(toArray(usersRes));
-      setTeamMembers(toArray(teamRes));
-      setTeamRows(toArray(projectTeamRes));
 
       try {
         const detail = await getData(`/projects/${targetId}/`);
@@ -132,7 +125,7 @@ export default function ProjectDetailsPage() {
 
   const userLookup = useMemo(() => {
     const lookup = {};
-    const merged = mergeRowsById(users, teamMembers, teamRows.map((row) => row?.member).filter(Boolean));
+    const merged = mergeRowsById(users);
 
     for (const row of merged) {
       const rowId = String(row?.id || "");
@@ -141,11 +134,11 @@ export default function ProjectDetailsPage() {
     }
 
     return lookup;
-  }, [teamMembers, teamRows, users]);
+  }, [users]);
 
   const managerOptions = useMemo(
-    () => mergeRowsById(users, teamMembers).map((row) => ({ id: String(row?.id || ""), label: buildUserLabel(row) })),
-    [teamMembers, users]
+    () => mergeRowsById(users).map((row) => ({ id: String(row?.id || ""), label: buildUserLabel(row) })),
+    [users]
   );
 
   const clientOptions = managerOptions;
@@ -220,7 +213,7 @@ export default function ProjectDetailsPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Project Details</p>
               <h1 className="text-2xl font-bold text-slate-900">{project?.name || "Project"}</h1>
-              <p className="mt-1 text-sm text-slate-500">Description opens here and update is available on click.</p>
+              <p className="mt-1 text-sm text-slate-500">Description opens here and editing is available on click.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button className="btn-secondary" onClick={() => navigate(-1)}>
@@ -228,7 +221,7 @@ export default function ProjectDetailsPage() {
               </button>
               {!loading && !errorText && project ? (
                 <button className="btn-primary" onClick={() => setShowEditForm((value) => !value)}>
-                  {showEditForm ? "Close Update" : "Update Project"}
+                  {showEditForm ? "Close Editor" : "Edit Project"}
                 </button>
               ) : null}
             </div>
@@ -269,28 +262,11 @@ export default function ProjectDetailsPage() {
                 </div>
               </article>
 
-              <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Team Members</h2>
-                <div className="mt-3 space-y-3 text-sm text-slate-700">
-                  {!teamRows.length ? <p className="text-slate-500">No team members linked.</p> : null}
-                  {teamRows.map((row, index) => {
-                    const memberId = String(getEntityId(row?.member) || "");
-                    const memberLabel = memberId ? userLookup[memberId] || "Unknown user" : "User";
-                    return (
-                      <article key={`${memberId}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <p className="font-semibold text-slate-900">{memberLabel}</p>
-                        <p className="text-slate-600">Project Role: {row?.role || "-"}</p>
-                        <p className="text-slate-500">Joined: {safeDate(row?.joined_at)}</p>
-                      </article>
-                    );
-                  })}
-                </div>
-              </article>
             </section>
 
             {showEditForm ? (
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Update Project</h2>
+                <h2 className="text-base font-semibold text-slate-900">Edit Project</h2>
                 <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={submitUpdate}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Project Name</span>
@@ -318,7 +294,7 @@ export default function ProjectDetailsPage() {
                     <span className="font-medium">Status</span>
                     <select className="input" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
                       {STATUS_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
+                        <option key={option} value={option}>{humanizeLabel(option)}</option>
                       ))}
                     </select>
                   </label>
@@ -326,7 +302,7 @@ export default function ProjectDetailsPage() {
                     <span className="font-medium">Priority</span>
                     <select className="input" value={form.priority} onChange={(event) => setForm((value) => ({ ...value, priority: event.target.value }))}>
                       {PRIORITY_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
+                        <option key={option} value={option}>{humanizeLabel(option)}</option>
                       ))}
                     </select>
                   </label>
@@ -354,17 +330,17 @@ export default function ProjectDetailsPage() {
                     <span className="font-medium">Description</span>
                     <textarea className="input min-h-28" value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} />
                   </label>
-                  <button className="btn-primary md:col-span-2" disabled={saving}>{saving ? "Updating..." : "Update Project"}</button>
+                  <button className="btn-primary md:col-span-2" disabled={saving}>{saving ? "Saving..." : "Save Project"}</button>
                 </form>
               </section>
             ) : null}
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-base font-semibold text-slate-900">All Project Fields</h2>
+              <h2 className="text-base font-semibold text-slate-900">Project Details</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {visibleProjectFields.map(([key, value]) => (
                   <article key={key} className="rounded border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{key}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{humanizeLabel(key)}</p>
                     <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-800">{formatValue(value)}</pre>
                   </article>
                 ))}
