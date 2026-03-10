@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import JsonViewer from "../components/JsonViewer";
 import { getData, patchData, postData } from "../lib/api";
 import { useAuth } from "../lib/auth";
-
+import logo from "./logo.png";
 const readEndpoints = [
   { label: "Current User", url: "/current-user/" },
   { label: "Overview", url: "/overview/" },
@@ -192,15 +192,18 @@ export default function DashboardPage() {
   };
 
   return (
-    <main className="min-h-screen p-4 md:p-6">
-      <header className="mb-6 flex flex-col gap-3 rounded-xl bg-gradient-to-r from-brand-700 to-brand-900 p-5 text-white md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">WorkHub Frontend</h1>
-          <p className="text-sm text-sky-100">Logged in as {user?.name || user?.email || "User"}</p>
+    <main className="min-h-screen p-4 md:p-6" style={{ background: "#eef3fb" }}>
+      <header className="mb-6 flex flex-col gap-3 rounded-2xl p-5 text-white shadow-lg md:flex-row md:items-center md:justify-between" style={{ background: "linear-gradient(135deg, #0d2148 0%, #1a3a6b 60%, #1e4d99 100%)" }}>
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="WorkBridge" style={{ width: 42, height: 42, borderRadius: 10, objectFit: "cover", border: "2px solid rgba(255,255,255,0.25)" }} />
+          <div>
+            <h1 className="text-2xl font-bold">WorkBridge</h1>
+            <p className="text-sm" style={{ color: "#93c5fd" }}>Logged in as {user?.name || user?.email || "User"}</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary" onClick={() => fetchEndpoint("/current-user/")}>Refresh User</button>
-          <button className="btn bg-white text-brand-800" onClick={logout}>Logout</button>
+          <button className="rounded-lg px-4 py-2 text-sm font-semibold transition" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff" }} onClick={logout}>Logout</button>
         </div>
       </header>
 
@@ -340,4 +343,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-

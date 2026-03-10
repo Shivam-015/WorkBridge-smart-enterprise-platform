@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react"
-import EmployeeSidebar from "../../components/layout/EmployeeSidebar"
-import EmployeeTopbar from "../../components/layout/EmployeeTopbar"
+import logo from "../logo.png"
 
 const API = "http://127.0.0.1:8000/api"
 
@@ -341,15 +340,54 @@ export default function EmployeeDashboard() {
         }
     }
 
-    return (
-        <div className="flex min-h-screen">
-            <EmployeeSidebar
-                activePage={activePage}
-                setActivePage={setActivePage}
-            />
+    const navItems = [
+        { id: "dashboard", label: "Dashboard" },
+        { id: "tasks", label: "My Tasks" },
+        { id: "projects", label: "Projects" },
+        { id: "attendance", label: "Attendance" },
+        { id: "leave", label: "Leave" },
+        { id: "reports", label: "Reports" },
+        { id: "settings", label: "Settings" },
+    ]
 
-            <div className="flex-1 bg-gray-100 flex flex-col">
-                <EmployeeTopbar />
+    return (
+        <div className="flex min-h-screen" style={{ background: "#eef3fb" }}>
+            {/* ── SIDEBAR ── */}
+            <aside className="w-64 min-h-screen flex flex-col shadow-lg" style={{ background: "linear-gradient(180deg, #0d2148 0%, #1a3a6b 100%)" }}>
+                {/* Logo */}
+                <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                    <img src={logo} alt="WorkBridge" style={{ width: 38, height: 38, borderRadius: 9, objectFit: "cover", border: "2px solid rgba(255,255,255,0.25)" }} />
+                    <span className="text-lg font-bold text-white tracking-tight">WorkBridge</span>
+                </div>
+                {/* Nav */}
+                <nav className="flex-1 px-4 py-4">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-widest" style={{ color: "#5b8fd6" }}>Menu</p>
+                    <div className="space-y-1">
+                        {navItems.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setActivePage(item.id)}
+                                className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-left transition"
+                                style={activePage === item.id
+                                    ? { background: "rgba(255,255,255,0.18)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }
+                                    : { background: "transparent", color: "#93c5fd", border: "1px solid transparent" }}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                </nav>
+            </aside>
+
+            {/* ── MAIN ── */}
+            <div className="flex-1 flex flex-col">
+                {/* Topbar */}
+                <header className="flex items-center justify-between px-6 py-3 shadow-sm" style={{ background: "linear-gradient(135deg, #0d2148 0%, #1a3a6b 100%)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                    <h1 className="text-lg font-bold text-white tracking-tight">Employee Dashboard</h1>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
+                        E
+                    </div>
+                </header>
                 <main className="flex-1">
                     {renderPage()}
                 </main>

@@ -4,6 +4,7 @@ import DataTable from "../components/DataTable";
 import StatusPill from "../components/StatusPill";
 import { deleteData, getData, patchData, postData, putData } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import wbLogo from "./logo.png";
 
 const MENUS = {
   owner: [
@@ -159,8 +160,8 @@ function getRoleText(row) {
   const roleValue = row?.role;
   return String(
     row?.role_name ||
-      (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
-      ""
+    (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+    ""
   )
     .trim()
     .toLowerCase();
@@ -306,10 +307,11 @@ function StatCard({ label, value }) {
 }
 
 function SectionTitle({ title, subtitle }) {
+  const cleanSubtitle = subtitle && !/^\s*(GET|POST|PATCH|PUT|DELETE)\s+\/api\//i.test(subtitle) ? subtitle : null;
   return (
     <header className="mb-3">
       <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-      {subtitle ? <p className="text-sm text-slate-500">{subtitle}</p> : null}
+      {cleanSubtitle ? <p className="text-sm text-slate-500">{cleanSubtitle}</p> : null}
     </header>
   );
 }
@@ -513,19 +515,19 @@ export default function ManagerDashboardPage() {
   const dashboardCompanyInfo = useMemo(() => {
     const directName = String(
       currentUser?.company?.name ||
-        currentUser?.company_name ||
-        user?.company?.name ||
-        (typeof currentUser?.company === "string" ? currentUser.company : "") ||
-        (typeof user?.company === "string" ? user.company : "") ||
-        ""
+      currentUser?.company_name ||
+      user?.company?.name ||
+      (typeof currentUser?.company === "string" ? currentUser.company : "") ||
+      (typeof user?.company === "string" ? user.company : "") ||
+      ""
     ).trim();
 
     const directLogo = String(
       currentUser?.company?.logo ||
-        currentUser?.company_logo ||
-        user?.company?.logo ||
-        (typeof user?.company_logo === "string" ? user.company_logo : "") ||
-        ""
+      currentUser?.company_logo ||
+      user?.company?.logo ||
+      (typeof user?.company_logo === "string" ? user.company_logo : "") ||
+      ""
     ).trim();
 
     let name = directName;
@@ -564,11 +566,11 @@ export default function ManagerDashboardPage() {
     () =>
       numberOrNull(
         currentUser?.company_id ||
-          currentUser?.company?.id ||
-          user?.company_id ||
-          user?.company?.id ||
-          roleBackedCompanyId ||
-          companies.find((company) => numberOrNull(company?.id) !== null)?.id
+        currentUser?.company?.id ||
+        user?.company_id ||
+        user?.company?.id ||
+        roleBackedCompanyId ||
+        companies.find((company) => numberOrNull(company?.id) !== null)?.id
       ),
     [companies, currentUser, roleBackedCompanyId, user]
   );
@@ -810,12 +812,12 @@ export default function ManagerDashboardPage() {
     () =>
       numberOrNull(
         createUserForm.company_id ||
-          currentUser?.company_id ||
-          currentUser?.company?.id ||
-          user?.company_id ||
-          user?.company?.id ||
-          roleBackedCompanyId ||
-          createRoleForm.company
+        currentUser?.company_id ||
+        currentUser?.company?.id ||
+        user?.company_id ||
+        user?.company?.id ||
+        roleBackedCompanyId ||
+        createRoleForm.company
       ),
     [createRoleForm.company, createUserForm.company_id, currentUser, roleBackedCompanyId, user]
   );
@@ -880,10 +882,10 @@ export default function ManagerDashboardPage() {
 
     const fallbackCompanyId = numberOrNull(
       currentUser?.company_id ||
-        currentUser?.company?.id ||
-        user?.company_id ||
-        user?.company?.id ||
-        roleBackedCompanyId
+      currentUser?.company?.id ||
+      user?.company_id ||
+      user?.company?.id ||
+      roleBackedCompanyId
     );
 
     if (fallbackCompanyId !== null) {
@@ -913,8 +915,8 @@ export default function ManagerDashboardPage() {
       const roleValue = row?.role;
       const roleText = String(
         row?.role_name ||
-          (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
-          ""
+        (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+        ""
       )
         .trim()
         .toLowerCase();
@@ -997,13 +999,13 @@ export default function ManagerDashboardPage() {
 
     if (activeMenu === "owner-tasks" && roleType === "owner") {
       intervalId = setInterval(() => {
-        loadOwnerData().catch(() => {});
+        loadOwnerData().catch(() => { });
       }, 15000);
     }
 
     if (activeMenu === "manager-tasks" && roleType === "manager") {
       intervalId = setInterval(() => {
-        loadManagerData().catch(() => {});
+        loadManagerData().catch(() => { });
       }, 15000);
     }
 
@@ -1083,12 +1085,12 @@ export default function ManagerDashboardPage() {
 
     const companyId = numberOrNull(
       createRoleForm.company ||
-        createUserForm.company_id ||
-        currentUser?.company_id ||
-        currentUser?.company?.id ||
-        user?.company_id ||
-        user?.company?.id ||
-        roleBackedCompanyId
+      createUserForm.company_id ||
+      currentUser?.company_id ||
+      currentUser?.company?.id ||
+      user?.company_id ||
+      user?.company?.id ||
+      roleBackedCompanyId
     );
 
     if (companyId === null) {
@@ -1538,7 +1540,7 @@ export default function ManagerDashboardPage() {
       const payload = new FormData();
       payload.append("title", String(createTaskForm.title || "").trim());
       payload.append("description", String(createTaskForm.description || "").trim());
-            const assignedToId = numberOrNull(createTaskForm.assigned_to);
+      const assignedToId = numberOrNull(createTaskForm.assigned_to);
       if (assignedToId === null) {
         setErrorText("Please select an assignee.");
         return;
@@ -1922,9 +1924,9 @@ export default function ManagerDashboardPage() {
 
       const roleText = String(
         row?.role_name ||
-          (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
-          (roleId !== null ? roleNameById[String(roleId)] : "") ||
-          ""
+        (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+        (roleId !== null ? roleNameById[String(roleId)] : "") ||
+        ""
       )
         .trim()
         .toLowerCase();
@@ -2700,9 +2702,9 @@ export default function ManagerDashboardPage() {
 
       const roleText = String(
         row?.role_name ||
-          (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
-          (roleId !== null ? roleNameById[String(roleId)] : "") ||
-          ""
+        (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+        (roleId !== null ? roleNameById[String(roleId)] : "") ||
+        ""
       )
         .trim()
         .toLowerCase();
@@ -3007,36 +3009,49 @@ export default function ManagerDashboardPage() {
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 p-4 md:p-6">
-      <header className="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white shadow-lg">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-5">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg border border-white/40 bg-white/10" />
-            <h1 className="text-xl font-bold leading-tight">{platformName}</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="btn !border-slate-300 !bg-white !text-slate-900 hover:!bg-slate-100" onClick={logout}>Logout</button>
-          </div>
+    <main className="min-h-screen p-4 md:p-6" style={{ background: "#eef3fb" }}>
+      {/* ── TOP HEADER ── */}
+      <header className="mb-5 flex items-center justify-between rounded-2xl px-5 py-3 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #0d2148 0%, #1a3a6b 60%, #1e4d99 100%)" }}>
+        <div className="flex items-center gap-3">
+          <img src={wbLogo} alt="WorkBridge" style={{ width: 40, height: 40, borderRadius: 10, objectFit: "cover", border: "2px solid rgba(255,255,255,0.25)" }} />
+          <span className="text-xl font-bold tracking-tight">{platformName}</span>
         </div>
+        <button
+          className="rounded-lg px-4 py-2 text-sm font-semibold transition"
+          style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff" }}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
+          onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
+          onClick={logout}
+        >
+          Logout
+        </button>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[270px_1fr]">
-        <aside className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-4">
-          <div className="mb-4 border-b border-slate-200 pb-4">
-            <p className="text-xl font-semibold leading-tight text-slate-900">Hi, {dashboardUserName}</p>
-            <p className="mt-1 text-sm text-slate-600">{dashboardUserRole}</p>
+      <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+        {/* ── SIDEBAR ── */}
+        <aside className="overflow-hidden rounded-2xl shadow-md lg:sticky lg:top-4 lg:self-start" style={{ background: "linear-gradient(180deg, #0d2148 0%, #1a3a6b 100%)", border: "1px solid #1e4d99" }}>
+          <div className="px-5 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <p className="text-xl font-bold text-white">Hi, {dashboardUserName}</p>
+            <p className="mt-1 text-sm font-medium" style={{ color: "#93c5fd" }}>{dashboardUserRole}</p>
           </div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Menu</p>
-          <div className="space-y-2">
-            {menus.map((item) => (
-              <button
-                key={item.id}
-                className={activeMenu === item.id ? "btn w-full bg-brand-600 text-white" : "btn-secondary w-full"}
-                onClick={() => { setActiveMenu(item.id); persistActiveMenu(item.id); }}
-              >
-                {item.label}
-              </button>
-            ))}
+          <div className="px-4 py-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-widest" style={{ color: "#5b8fd6" }}>Menu</p>
+            <div className="space-y-1">
+              {menus.map((item) => (
+                <button
+                  key={item.id}
+                  className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-left transition"
+                  style={activeMenu === item.id
+                    ? { background: "rgba(255,255,255,0.18)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }
+                    : { background: "transparent", color: "#93c5fd", border: "1px solid transparent" }}
+                  onMouseEnter={e => { if (activeMenu !== item.id) e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+                  onMouseLeave={e => { if (activeMenu !== item.id) e.currentTarget.style.background = "transparent"; }}
+                  onClick={() => { setActiveMenu(item.id); persistActiveMenu(item.id); }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
         </aside>
 
@@ -3101,14 +3116,14 @@ export default function ManagerDashboardPage() {
                 <form className="space-y-3" onSubmit={submitCreateRole}>
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1 text-sm text-slate-700">
-  <span className="font-medium">Company</span>
-  <select className="input" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
-    <option value="">Select company</option>
-    {companyOptions.map((companyOption) => (
-      <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-    ))}
-  </select>
-</label>
+                      <span className="font-medium">Company</span>
+                      <select className="input" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                        <option value="">Select company</option>
+                        {companyOptions.map((companyOption) => (
+                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                        ))}
+                      </select>
+                    </label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="input" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="input" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
