@@ -206,21 +206,21 @@ export default function ProjectDetailsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-100 p-4 md:p-6">
+    <main className="min-h-screen p-4 md:p-6" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
       <section className="mx-auto max-w-6xl space-y-4">
-        <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <header className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Project Details</p>
-              <h1 className="text-2xl font-bold text-slate-900">{project?.name || "Project"}</h1>
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">Project Details</p>
+              <h1 className="text-2xl font-bold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{project?.name || "Project"}</h1>
               <p className="mt-1 text-sm text-slate-500">Description opens here and editing is available on click.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button className="btn-secondary" onClick={() => navigate(-1)}>
+              <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={() => navigate(-1)}>
                 Back
               </button>
               {!loading && !errorText && project ? (
-                <button className="btn-primary" onClick={() => setShowEditForm((value) => !value)}>
+                <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={() => setShowEditForm((value) => !value)}>
                   {showEditForm ? "Close Editor" : "Edit Project"}
                 </button>
               ) : null}
@@ -243,8 +243,8 @@ export default function ProjectDetailsPage() {
         {!loading && !errorText && project ? (
           <>
             <section className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
-              <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Summary</h2>
+              <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <h2 className="text-base font-bold text-blue-900">Summary</h2>
                 <div className="mt-3 space-y-2 text-sm text-slate-700">
                   <p><span className="font-semibold">Description:</span> {project.description || "-"}</p>
                   <p><span className="font-semibold">Manager:</span> {managerLabel}</p>
@@ -265,16 +265,16 @@ export default function ProjectDetailsPage() {
             </section>
 
             {showEditForm ? (
-              <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Edit Project</h2>
+              <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <h2 className="text-base font-bold text-blue-900">Edit Project</h2>
                 <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={submitUpdate}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Project Name</span>
-                    <input className="input" value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} required />
+                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} required />
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Manager</span>
-                    <select className="input" value={form.manager} onChange={(event) => setForm((value) => ({ ...value, manager: event.target.value }))}>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.manager} onChange={(event) => setForm((value) => ({ ...value, manager: event.target.value }))}>
                       <option value="">Select manager</option>
                       {managerOptions.map((option) => (
                         <option key={option.id} value={option.id}>{option.label}</option>
@@ -283,7 +283,7 @@ export default function ProjectDetailsPage() {
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Client</span>
-                    <select className="input" value={form.client} onChange={(event) => setForm((value) => ({ ...value, client: event.target.value }))}>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.client} onChange={(event) => setForm((value) => ({ ...value, client: event.target.value }))}>
                       <option value="">None</option>
                       {clientOptions.map((option) => (
                         <option key={option.id} value={option.id}>{option.label}</option>
@@ -292,7 +292,7 @@ export default function ProjectDetailsPage() {
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Status</span>
-                    <select className="input" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
                       {STATUS_OPTIONS.map((option) => (
                         <option key={option} value={option}>{humanizeLabel(option)}</option>
                       ))}
@@ -300,7 +300,7 @@ export default function ProjectDetailsPage() {
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Priority</span>
-                    <select className="input" value={form.priority} onChange={(event) => setForm((value) => ({ ...value, priority: event.target.value }))}>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.priority} onChange={(event) => setForm((value) => ({ ...value, priority: event.target.value }))}>
                       {PRIORITY_OPTIONS.map((option) => (
                         <option key={option} value={option}>{humanizeLabel(option)}</option>
                       ))}
@@ -308,19 +308,19 @@ export default function ProjectDetailsPage() {
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Start Date</span>
-                    <input className="input" type="date" value={form.start_date} onChange={(event) => setForm((value) => ({ ...value, start_date: event.target.value }))} required />
+                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={form.start_date} onChange={(event) => setForm((value) => ({ ...value, start_date: event.target.value }))} required />
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">End Date</span>
-                    <input className="input" type="date" value={form.end_date} onChange={(event) => setForm((value) => ({ ...value, end_date: event.target.value }))} />
+                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={form.end_date} onChange={(event) => setForm((value) => ({ ...value, end_date: event.target.value }))} />
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Budget</span>
-                    <input className="input" type="number" step="0.01" value={form.budget} onChange={(event) => setForm((value) => ({ ...value, budget: event.target.value }))} />
+                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="number" step="0.01" value={form.budget} onChange={(event) => setForm((value) => ({ ...value, budget: event.target.value }))} />
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Actual Cost</span>
-                    <input className="input" type="number" step="0.01" value={form.actual_cost} onChange={(event) => setForm((value) => ({ ...value, actual_cost: event.target.value }))} />
+                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="number" step="0.01" value={form.actual_cost} onChange={(event) => setForm((value) => ({ ...value, actual_cost: event.target.value }))} />
                   </label>
                   <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 md:col-span-2">
                     <input type="checkbox" checked={form.is_active} onChange={(event) => setForm((value) => ({ ...value, is_active: event.target.checked }))} />
@@ -335,12 +335,12 @@ export default function ProjectDetailsPage() {
               </section>
             ) : null}
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-base font-semibold text-slate-900">Project Details</h2>
+            <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+              <h2 className="text-base font-bold text-blue-900">Project Details</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {visibleProjectFields.map(([key, value]) => (
                   <article key={key} className="rounded border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{humanizeLabel(key)}</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">{humanizeLabel(key)}</p>
                     <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-800">{formatValue(value)}</pre>
                   </article>
                 ))}
