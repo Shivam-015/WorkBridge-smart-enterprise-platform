@@ -4,6 +4,7 @@ import DataTable from "../components/DataTable";
 import StatusPill from "../components/StatusPill";
 import { deleteData, getData, patchData, postData, putData } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import logo from "./logo.png";
 
 const MENUS = {
   owner: [
@@ -178,8 +179,8 @@ function getRoleText(row) {
   const roleValue = row?.role;
   return String(
     row?.role_name ||
-      (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
-      ""
+    (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+    ""
   )
     .trim()
     .toLowerCase();
@@ -348,17 +349,17 @@ function canAccessMenu(roleType, menuId, permissions) {
 
 function StatCard({ label, value }) {
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-900">{value ?? 0}</p>
+    <article className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm" style={{ borderLeft: "4px solid #1d4ed8" }}>
+      <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">{label}</p>
+      <p className="mt-2 text-3xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{value ?? 0}</p>
     </article>
   );
 }
 
 function SectionTitle({ title }) {
   return (
-    <header className="mb-3">
-      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+    <header className="mb-4">
+      <h2 className="text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.01em" }}>{title}</h2>
     </header>
   );
 }
@@ -570,20 +571,20 @@ export default function ManagerDashboardPage() {
   const dashboardCompanyInfo = useMemo(() => {
     const directName = String(
       currentUser?.company?.name ||
-        currentUser?.company_name ||
-        user?.company?.name ||
-        (typeof currentUser?.company === "string" ? currentUser.company : "") ||
-        (typeof user?.company === "string" ? user.company : "") ||
-        ""
+      currentUser?.company_name ||
+      user?.company?.name ||
+      (typeof currentUser?.company === "string" ? currentUser.company : "") ||
+      (typeof user?.company === "string" ? user.company : "") ||
+      ""
     ).trim();
 
     const directLogo = String(
       companySettingsForm.logo ||
-        currentUser?.company?.logo ||
-        currentUser?.company_logo ||
-        user?.company?.logo ||
-        (typeof user?.company_logo === "string" ? user.company_logo : "") ||
-        ""
+      currentUser?.company?.logo ||
+      currentUser?.company_logo ||
+      user?.company?.logo ||
+      (typeof user?.company_logo === "string" ? user.company_logo : "") ||
+      ""
     ).trim();
 
     let name = directName;
@@ -634,11 +635,11 @@ export default function ManagerDashboardPage() {
     () =>
       numberOrNull(
         currentUser?.company_id ||
-          currentUser?.company?.id ||
-          user?.company_id ||
-          user?.company?.id ||
-          roleBackedCompanyId ||
-          companies.find((company) => numberOrNull(company?.id) !== null)?.id
+        currentUser?.company?.id ||
+        user?.company_id ||
+        user?.company?.id ||
+        roleBackedCompanyId ||
+        companies.find((company) => numberOrNull(company?.id) !== null)?.id
       ),
     [companies, currentUser, roleBackedCompanyId, user]
   );
@@ -862,7 +863,7 @@ export default function ManagerDashboardPage() {
       setActiveMenu(menuId);
       persistActiveMenu(menuId);
       await refreshByRole(type, me);
-    }, "Dashboard loaded");
+    }, "");
   };
 
   useEffect(() => {
@@ -880,12 +881,12 @@ export default function ManagerDashboardPage() {
     () =>
       numberOrNull(
         createUserForm.company_id ||
-          currentUser?.company_id ||
-          currentUser?.company?.id ||
-          user?.company_id ||
-          user?.company?.id ||
-          roleBackedCompanyId ||
-          createRoleForm.company
+        currentUser?.company_id ||
+        currentUser?.company?.id ||
+        user?.company_id ||
+        user?.company?.id ||
+        roleBackedCompanyId ||
+        createRoleForm.company
       ),
     [createRoleForm.company, createUserForm.company_id, currentUser, roleBackedCompanyId, user]
   );
@@ -950,10 +951,10 @@ export default function ManagerDashboardPage() {
 
     const fallbackCompanyId = numberOrNull(
       currentUser?.company_id ||
-        currentUser?.company?.id ||
-        user?.company_id ||
-        user?.company?.id ||
-        roleBackedCompanyId
+      currentUser?.company?.id ||
+      user?.company_id ||
+      user?.company?.id ||
+      roleBackedCompanyId
     );
 
     if (fallbackCompanyId !== null) {
@@ -983,8 +984,8 @@ export default function ManagerDashboardPage() {
       const roleValue = row?.role;
       const roleText = String(
         row?.role_name ||
-          (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
-          ""
+        (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+        ""
       )
         .trim()
         .toLowerCase();
@@ -1067,13 +1068,13 @@ export default function ManagerDashboardPage() {
 
     if (activeMenu === "owner-tasks" && roleType === "owner") {
       intervalId = setInterval(() => {
-        loadOwnerData().catch(() => {});
+        loadOwnerData().catch(() => { });
       }, 15000);
     }
 
     if (activeMenu === "manager-tasks" && roleType === "manager") {
       intervalId = setInterval(() => {
-        loadManagerData().catch(() => {});
+        loadManagerData().catch(() => { });
       }, 15000);
     }
 
@@ -1153,12 +1154,12 @@ export default function ManagerDashboardPage() {
 
     const companyId = numberOrNull(
       createRoleForm.company ||
-        createUserForm.company_id ||
-        currentUser?.company_id ||
-        currentUser?.company?.id ||
-        user?.company_id ||
-        user?.company?.id ||
-        roleBackedCompanyId
+      createUserForm.company_id ||
+      currentUser?.company_id ||
+      currentUser?.company?.id ||
+      user?.company_id ||
+      user?.company?.id ||
+      roleBackedCompanyId
     );
 
     if (companyId === null) {
@@ -1614,7 +1615,7 @@ export default function ManagerDashboardPage() {
       const payload = new FormData();
       payload.append("title", String(createTaskForm.title || "").trim());
       payload.append("description", String(createTaskForm.description || "").trim());
-            const assignedToId = numberOrNull(createTaskForm.assigned_to);
+      const assignedToId = numberOrNull(createTaskForm.assigned_to);
       if (assignedToId === null) {
         setErrorText("Please select an assignee.");
         return;
@@ -1674,7 +1675,7 @@ export default function ManagerDashboardPage() {
     await runAction("manager-project-tasks", async () => {
       const result = await getData(`/all-tasks/?project_id=${projectTaskForm.project_id}`);
       setManagerProjectTasks(toArray(result));
-    }, "Project tasks loaded");
+    }, "");
   };
 
   const buildTaskUpdatePayload = (form) => ({
@@ -2021,9 +2022,9 @@ export default function ManagerDashboardPage() {
 
       const roleText = String(
         row?.role_name ||
-          (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
-          (roleId !== null ? roleNameById[String(roleId)] : "") ||
-          ""
+        (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+        (roleId !== null ? roleNameById[String(roleId)] : "") ||
+        ""
       )
         .trim()
         .toLowerCase();
@@ -2786,9 +2787,9 @@ export default function ManagerDashboardPage() {
 
       const roleText = String(
         row?.role_name ||
-          (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
-          (roleId !== null ? roleNameById[String(roleId)] : "") ||
-          ""
+        (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+        (roleId !== null ? roleNameById[String(roleId)] : "") ||
+        ""
       )
         .trim()
         .toLowerCase();
@@ -2872,7 +2873,7 @@ export default function ManagerDashboardPage() {
   }, [employeeUserIds, taskProgressSourceRows, taskUserLabelById]);
 
   const renderTaskProgressSection = () => (
-    <section className="card">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <SectionTitle title="Task Progress" subtitle="Employees and their assigned tasks" />
       {!taskProgressRows.length ? (
         <p className="text-sm text-slate-500">No employee task mapping found.</p>
@@ -3045,13 +3046,13 @@ export default function ManagerDashboardPage() {
   const renderManagerProjectTeamSections = () => (
     <>
       {!managerProjectTeamGroups.length ? (
-        <section className="card">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <SectionTitle title="Project Teams" subtitle="GET /api/projects/:project_id/team/" />
           <p className="text-sm text-slate-500">No project teams found.</p>
         </section>
       ) : (
         managerProjectTeamGroups.map((project) => (
-          <section key={project.id || project.name} className="card">
+          <section key={project.id || project.name} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <SectionTitle title={project.name || "Project"} subtitle="GET /api/projects/:project_id/team/" />
             <p className="mb-3 text-sm text-slate-500">
               Status: {project.status || "-"} | Progress: {project.progress || "-"}
@@ -3065,26 +3066,26 @@ export default function ManagerDashboardPage() {
 
   const renderAttendanceAndLeaveSections = () => (
     <>
-      <section className="card">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <SectionTitle title="Attendance Actions" subtitle="POST /api/attendance/checkin/ and /checkout/" />
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
-          <button className="btn-secondary" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
+          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
+          <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
         </div>
       </section>
-      <section className="card">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <SectionTitle title="Attendance History" subtitle="GET /api/attendance/" />
         <DataTable columns={attendanceColumns} rows={employeeAttendanceRows} emptyText="No attendance records" />
       </section>
-      <section className="card">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <SectionTitle title="Leaves Applied Status" subtitle="GET /api/my-leaves/" />
         <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leave history" />
       </section>
-      <section className="card">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <SectionTitle title="Leave Application Form" subtitle="POST /api/leave/apply/" />
         <form className="grid gap-3 md:grid-cols-2" onSubmit={submitLeaveApply}>
-          <input className="input" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
-          <input className="input" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
+          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
           <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Reason</span><textarea className="input min-h-24 md:col-span-2" value={leaveApplyForm.reason} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, reason: e.target.value }))} required /></label>
           <button className="btn-primary md:col-span-2" disabled={busyKey === "apply-leave"}>{busyKey === "apply-leave" ? "Submitting..." : "Apply Leave"}</button>
         </form>
@@ -3093,31 +3094,49 @@ export default function ManagerDashboardPage() {
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 p-4 md:p-6">
-      <header className="mb-4 overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white shadow-lg">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-5">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg border border-white/40 bg-white/10" />
-            <h1 className="text-xl font-bold leading-tight">{platformName}</h1>
+    <main className="min-h-screen" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
+      <header className="mb-0 overflow-hidden text-white shadow-lg" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7" }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 md:px-6">
+          <div className="flex items-center gap-4">
+            <div className="h-11 w-11 rounded-full overflow-hidden border-2 border-white/30" style={{ boxShadow: "0 0 0 3px rgba(30,77,183,0.4)" }}>
+              <img src={logo} alt="WorkBridge" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-wide" style={{ fontFamily: "'Georgia', serif" }}>{platformName}</h1>
+              <p className="text-xs font-semibold" style={{ color: "#93c5fd" }}>{dashboardCompanyInfo.name || "Company Dashboard"}</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn !border-slate-300 !bg-white !text-slate-900 hover:!bg-slate-100" onClick={logout}>Logout</button>
+            <button className="rounded-lg px-4 py-2 text-sm font-semibold transition hover:bg-white/20" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff" }} onClick={logout}>Logout</button>
           </div>
         </div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[270px_1fr]">
-        <aside className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-4">
-          <div className="mb-4 border-b border-slate-200 pb-4">
-            <p className="text-xl font-semibold leading-tight text-slate-900">Hi, {dashboardUserName}</p>
-            <p className="mt-1 text-sm text-slate-600">{dashboardUserRole}</p>
+      <div className="grid gap-0 lg:grid-cols-[260px_1fr]" style={{ minHeight: "calc(100vh - 67px)" }}>
+        <aside className="border-r border-blue-100/50 p-5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto" style={{ background: "rgba(219, 234, 254, 0.45)", backdropFilter: "blur(8px)" }}>
+          <div className="mb-5 pb-5" style={{ borderBottom: "1px solid rgba(30,64,175,0.15)" }}>
+            <div className="rounded-xl px-4 py-3" style={{ background: "linear-gradient(135deg, #0d2760 0%, #1e3a8a 100%)" }}>
+              <p className="text-sm font-bold mb-0.5" style={{ color: "rgba(191,219,254,0.85)" }}>Hello!</p>
+              <p className="font-extrabold text-white text-xl leading-tight" style={{ fontFamily: "'Georgia', serif" }}>{dashboardUserName}</p>
+              <span className="inline-block mt-2 rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "#bfdbfe", letterSpacing: "0.06em" }}>{dashboardUserRole}</span>
+            </div>
           </div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Menu</p>
-          <div className="space-y-2">
+          <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-blue-900/40">Navigation</p>
+          <div className="space-y-1.5">
             {menus.map((item) => (
               <button
                 key={item.id}
-                className={activeMenu === item.id ? "btn w-full bg-brand-600 text-white" : "btn-secondary w-full"}
+                className="w-full rounded-lg px-4 py-3 text-left text-sm font-bold transition-all"
+                style={activeMenu === item.id ? {
+                  background: "linear-gradient(135deg, #1e3a8a, #1d4ed8)",
+                  color: "#fff",
+                  boxShadow: "0 2px 8px rgba(30,58,138,0.3)"
+                } : {
+                  color: "#1e3a8a",
+                  background: "transparent"
+                }}
+                onMouseEnter={(e) => { if (activeMenu !== item.id) e.currentTarget.style.background = "rgba(30,58,138,0.08)"; }}
+                onMouseLeave={(e) => { if (activeMenu !== item.id) e.currentTarget.style.background = "transparent"; }}
                 onClick={() => { setActiveMenu(item.id); persistActiveMenu(item.id); }}
               >
                 {item.label}
@@ -3126,27 +3145,29 @@ export default function ManagerDashboardPage() {
           </div>
         </aside>
 
-        <section className="space-y-5">
-          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <section className="space-y-5 p-5 md:p-6">
+          <div className="rounded-2xl p-4 text-white shadow-sm" style={{ background: "linear-gradient(135deg, #0d2760 0%, #1e3a8a 100%)" }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 {dashboardCompanyInfo.logo ? (
                   <img
                     src={dashboardCompanyInfo.logo}
                     alt={`${dashboardCompanyInfo.name} logo`}
-                    className="h-11 w-11 rounded-full border border-slate-300 bg-white object-cover"
+                    className="h-11 w-11 rounded-full border-2 border-white/30 bg-white/10 object-cover"
                   />
                 ) : (
-                  <div className="h-11 w-11 rounded-full border border-slate-300 bg-slate-100" />
+                  <div className="h-11 w-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center">
+                    <span className="text-white font-bold">{(dashboardCompanyInfo.name || "C").charAt(0)}</span>
+                  </div>
                 )}
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Company</p>
-                  <p className="text-lg font-semibold text-slate-900">{dashboardCompanyInfo.name}</p>
+                  <p className="text-xs font-bold uppercase tracking-widest opacity-60">Company</p>
+                  <p className="text-xl font-extrabold" style={{ fontFamily: "'Georgia', serif" }}>{dashboardCompanyInfo.name || "WorkBridge"}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-lg font-semibold text-slate-900">{dashboardUserName}</p>
-                <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                <p className="text-lg font-extrabold" style={{ fontFamily: "'Georgia', serif" }}>{dashboardUserName}</p>
+                <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "rgba(255,255,255,0.15)", color: "#bfdbfe" }}>
                   {dashboardUserRole}
                 </span>
               </div>
@@ -3173,7 +3194,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completion %" value={ownerOverview.completion_rate} />
                 <StatCard label="Overdue" value={ownerOverview.overdue_tasks} />
               </div>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="All Tasks" subtitle="Click a task row to open full details" />
                 <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
@@ -3182,22 +3203,22 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "owner-roles" || activeMenu === "manager-roles" || activeMenu === "hr-roles" ? (
             <>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New Role" subtitle="POST /api/roles/" />
                 <form className="space-y-3" onSubmit={submitCreateRole}>
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1 text-sm text-slate-700">
-  <span className="font-medium">Company</span>
-  <select className="input" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
-    <option value="">Select company</option>
-    {companyOptions.map((companyOption) => (
-      <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-    ))}
-  </select>
-</label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="input" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="input" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
+                      <span className="font-medium">Company</span>
+                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                        <option value="">Select company</option>
+                        {companyOptions.map((companyOption) => (
+                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
                   </div>
                   <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                     {ROLE_PERMISSION_FIELDS.map((field) => (
@@ -3207,16 +3228,16 @@ export default function ManagerDashboardPage() {
                       </label>
                     ))}
                   </div>
-                  <button className="btn-primary" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
+                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
                 </form>
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Edit Role" subtitle="PATCH /api/roles/:id/" />
                 <form className="space-y-3" onSubmit={submitUpdateRole}>
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1 text-sm text-slate-700">
                       <span className="font-medium">Role</span>
-                      <select className="input" value={updateRoleForm.role_id} onChange={(e) => handleUpdateRoleSelection(e.target.value)} required>
+                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.role_id} onChange={(e) => handleUpdateRoleSelection(e.target.value)} required>
                         <option value="">Select role</option>
                         {roles.map((role) => (
                           <option key={role.id} value={role.id}>{role?.name || role?.slug || `Role ${role.id}`}</option>
@@ -3225,16 +3246,16 @@ export default function ManagerDashboardPage() {
                     </label>
                     <label className="space-y-1 text-sm text-slate-700">
                       <span className="font-medium">Company</span>
-                      <select className="input" value={updateRoleForm.company} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.company} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
                         <option value="">Select company</option>
                         {companyOptions.map((companyOption) => (
                           <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
                         ))}
                       </select>
                     </label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="input" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="input" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
                   </div>
                   <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                     {ROLE_PERMISSION_FIELDS.map((field) => (
@@ -3244,10 +3265,10 @@ export default function ManagerDashboardPage() {
                       </label>
                     ))}
                   </div>
-                  <button className="btn-primary" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Role"}</button>
+                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Role"}</button>
                 </form>
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Role List" subtitle="GET /api/roles/" />
                 <DataTable columns={roleColumns} rows={roles} emptyText="No roles" />
               </section>
@@ -3256,23 +3277,23 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "owner-users" ? (
             <>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New User" subtitle="POST /api/create-user/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Company</span>
-                    <select className="input" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
                       <option value="">Select company</option>
                       {companyOptions.map((companyOption) => (
                         <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
                       ))}
                     </select>
                   </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="input" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="input" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Role</span>
-                    <select className="input" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
                       <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
                       {createUserRoleOptions.map((roleOption) => (
                         <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
@@ -3282,7 +3303,7 @@ export default function ManagerDashboardPage() {
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
                 </form>
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="User List" subtitle="GET /api/users/" />
                 <DataTable columns={userListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
@@ -3291,23 +3312,23 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "manager-users" ? (
             <>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New User" subtitle="POST /api/create-user/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Company</span>
-                    <select className="input" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
                       <option value="">Select company</option>
                       {companyOptions.map((companyOption) => (
                         <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
                       ))}
                     </select>
                   </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="input" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="input" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Role</span>
-                    <select className="input" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
                       <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
                       {createUserRoleOptions.map((roleOption) => (
                         <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
@@ -3323,7 +3344,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Managers" value={managerUserMetrics.managers} />
                 <StatCard label="Employees" value={managerUserMetrics.employees} />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="User List" subtitle="GET /api/users/" />
                 <DataTable columns={managerUserListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
@@ -3337,24 +3358,24 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={ownerProjectMetrics.completed_projects} />
                 <StatCard label="On Hold" value={ownerProjectMetrics.on_hold_projects} />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New Project" subtitle="POST /api/projects/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="input" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="input" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="input" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="input" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="input" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="input" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="input" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
                   <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
                 </form>
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="All Projects" subtitle="GET /api/all-projects/" />
                 <DataTable columns={managerProjectColumns} rows={ownerProjectsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
@@ -3362,20 +3383,20 @@ export default function ManagerDashboardPage() {
           ) : null}
           {activeMenu === "owner-tasks" ? (
             <>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New Task" subtitle="POST /api/tasks/" />
                 {permissions.can_assign_task ? (
                   <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="input" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="input" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="input" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="input" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="input" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="input" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="input" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="input" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="input" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
                     <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
                     <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Save Task"}</button>
                   </form>
@@ -3389,24 +3410,24 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Overdue" value={ownerTaskMetrics.overdue_tasks} />
               </section>
               {renderTaskProgressSection()}
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="All Tasks" subtitle="GET /api/all-tasks/ + GET /api/task-analytics/" />
                 <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
           ) : null}
           {activeMenu === "owner-company" ? (
-            <section className="card">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <SectionTitle title="Company Settings" subtitle="GET /api/companies/ and PUT /api/companies/:id/" />
               <form className="grid gap-3 md:grid-cols-2" onSubmit={submitUpdateCompany}>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Company</span><input className="input" value={companySettingsForm.id} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, id: e.target.value }))} required /></label>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={companySettingsForm.name} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="input" value={companySettingsForm.email} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Phone</span><input className="input" value={companySettingsForm.phone} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, phone: e.target.value }))} required /></label>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Size</span><input className="input" value={companySettingsForm.size} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, size: e.target.value }))} required /></label>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Owner</span><input className="input" value={companySettingsForm.owner} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, owner: e.target.value }))} /></label>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Last User Number</span><input className="input" value={companySettingsForm.last_user_number} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, last_user_number: e.target.value }))} /></label>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Logo</span><input className="input" type="file" accept="image/*" onChange={handleCompanyLogoChange} /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Company</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.id} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, id: e.target.value }))} required /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.name} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.email} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, email: e.target.value }))} required /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Phone</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.phone} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, phone: e.target.value }))} required /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Size</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.size} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, size: e.target.value }))} required /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Owner</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.owner} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, owner: e.target.value }))} /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Last User Number</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={companySettingsForm.last_user_number} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, last_user_number: e.target.value }))} /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Logo</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={handleCompanyLogoChange} /></label>
                 <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Address</span><textarea className="input min-h-24 md:col-span-2" value={companySettingsForm.address} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, address: e.target.value }))} /></label>
                 <button className="btn-primary md:col-span-2" disabled={busyKey === "update-company"}>{busyKey === "update-company" ? "Saving..." : "Save Company"}</button>
               </form>
@@ -3425,15 +3446,15 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Overdue" value={managerOverviewCards.overdue_tasks} />
                 <StatCard label="Users" value={managerOverviewCards.team_members_count} />
               </div>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="My Projects" subtitle="Projects where you are the manager" />
                 <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="My Tasks" subtitle="Tasks assigned to manager" />
                 <DataTable columns={dashboardTaskListColumns} rows={managerOwnTaskRows} emptyText="No tasks assigned to manager" onRowClick={openTaskDetails} />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="My Leaves" subtitle="GET /api/my-leaves/" />
                 <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leaves" />
               </section>
@@ -3447,24 +3468,24 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerProjectMetrics.completed_projects} />
                 <StatCard label="On Hold" value={managerProjectMetrics.on_hold_projects} />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New Project" subtitle="POST /api/projects/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="input" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="input" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="input" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="input" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="input" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="input" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="input" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
                   <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
                 </form>
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Project List" subtitle="Click a project to open full details and edit" />
                 <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
@@ -3477,24 +3498,24 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerTaskMetrics.completed_tasks} />
                 <StatCard label="Overdue" value={managerTaskMetrics.overdue_tasks} />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New Task" subtitle="POST /api/tasks/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="input" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="input" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="input" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="input" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="input" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="input" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="input" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="input" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="input" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>Save Task</button>
                 </form>
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Task List" subtitle="GET /api/all-tasks/" />
                 <DataTable columns={dashboardTaskListColumns} rows={managerVisibleTaskRows} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
@@ -3509,11 +3530,11 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Overdue" value={employeeDashboardMetrics.overdue_tasks} />
                 <StatCard label="Total Projects" value={employeeDashboardMetrics.total_projects} />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Projects List" subtitle="Projects linked to assigned work" />
                 <DataTable columns={projectColumns} rows={employeeAssignedProjectRows} emptyText="No assigned projects" />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Assigned Tasks" subtitle="Click a task row to open full details and edit" />
                 <DataTable columns={dashboardTaskListColumns} rows={employeeTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
@@ -3535,23 +3556,23 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Approved Leaves" value={hrOverview.leave_summary?.approved} />
                 <StatCard label="Pending Leaves" value={hrOverview.leave_summary?.pending} />
               </div>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New Employee" subtitle="POST /api/create-user/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Company</span>
-                    <select className="input" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
                       <option value="">Select company</option>
                       {companyOptions.map((companyOption) => (
                         <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
                       ))}
                     </select>
                   </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="input" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="input" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Role</span>
-                    <select className="input" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
                       <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
                       {createUserRoleOptions.map((roleOption) => (
                         <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
@@ -3561,7 +3582,7 @@ export default function ManagerDashboardPage() {
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save Employee"}</button>
                 </form>
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="User List" subtitle="GET /api/users/" />
                 <DataTable columns={userListColumns} rows={hrVisibleUsers} emptyText="No users" onRowClick={openUserDetails} />
               </section>
@@ -3570,20 +3591,20 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "hr-attendance" ? (
             <>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Attendance List" subtitle="GET /api/attendance/" />
                 <DataTable columns={hrAttendanceColumns} rows={attendanceRecords} emptyText="No attendance records" />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Leave Approvals" subtitle="Review employee leaves" />
                 <DataTable columns={hrLeaveApprovalColumns} rows={hrLeaves} emptyText="No leave requests" />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Performance Review" subtitle="POST /api/review/:employee_id/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitPerformanceReview}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Employee</span>
-                    <select className="input" value={reviewForm.employee_id} onChange={(e) => setReviewForm((s) => ({ ...s, employee_id: e.target.value }))} required>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={reviewForm.employee_id} onChange={(e) => setReviewForm((s) => ({ ...s, employee_id: e.target.value }))} required>
                       <option value="">Select employee</option>
                       {hrEmployeeRows.map((employee) => (
                         <option key={employee.id} value={employee.id}>{getUserDisplayName(employee)}</option>
@@ -3592,7 +3613,7 @@ export default function ManagerDashboardPage() {
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Rating</span>
-                    <select className="input" value={reviewForm.rating} onChange={(e) => setReviewForm((s) => ({ ...s, rating: e.target.value }))}>
+                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={reviewForm.rating} onChange={(e) => setReviewForm((s) => ({ ...s, rating: e.target.value }))}>
                       <option value="1">1</option>
                       <option value="2">2</option>
                       <option value="3">3</option>
@@ -3612,7 +3633,7 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "hr-departments" ? (
             <>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="Department List" subtitle="GET /api/departments/" />
                 <DataTable
                   columns={[
@@ -3623,19 +3644,19 @@ export default function ManagerDashboardPage() {
                   emptyText="No departments"
                 />
               </section>
-              <section className="card">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <SectionTitle title="New Department" subtitle="POST /api/departments/" />
                 <form className="space-y-3" onSubmit={submitCreateDepartment}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={departmentForm.name} onChange={(e) => setDepartmentForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={departmentForm.name} onChange={(e) => setDepartmentForm((s) => ({ ...s, name: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Description</span><textarea className="input min-h-24" value={departmentForm.description} onChange={(e) => setDepartmentForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <button className="btn-primary" disabled={busyKey === "create-department"}>Save Department</button>
+                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={busyKey === "create-department"}>Save Department</button>
                 </form>
               </section>
             </>
           ) : null}
 
           {activeMenu === "client-dashboard" ? (
-            <section className="card">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <SectionTitle title="Client Dashboard" subtitle="GET /api/client-projects/" />
               <DataTable columns={projectColumns} rows={clientProjectsWithProgress} emptyText="No client projects" />
             </section>
@@ -3645,7 +3666,6 @@ export default function ManagerDashboardPage() {
     </main>
   );
 }
-
 
 
 
