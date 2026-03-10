@@ -14,20 +14,4 @@ urlpatterns = [
     path("client-projects/" , ClientProjectsProgressAPI.as_view()),
     path("manager-projects/", ManagerProjectsAPI.as_view()),
     path("manager-overview/" , ManagerOverviewAPI.as_view()),
-    path("team/" , ManagerTeamMembersAPI.as_view()),
-    path(
-        "projects/<int:project_id>/add-member/",
-        AddProjectTeamMemberAPI.as_view(),
-        name="add-project-team-member"
-    ),
-    path(
-        "projects/<int:project_id>/team/<int:member_id>/remove/",
-        RemoveProjectTeamMemberAPI.as_view(),
-        name="remove-project-team-member"
-    ),
-    path(
-        "projects/<int:project_id>/team/",
-        ProjectTeamListAPI.as_view(),
-        name="project-team-list"
-    ),
 ]

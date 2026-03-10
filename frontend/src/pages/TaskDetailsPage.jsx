@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { getData, patchData } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import {
   buildUserLabel,
   extractError,
   formatValue,
   getEntityId,
+  humanizeLabel,
   mergeRowsById,
   normalizeMediaUrl,
   toArray
@@ -35,12 +37,26 @@ function appendFormValue(formData, key, value) {
   formData.append(key, value);
 }
 
+function getRoleText(row) {
+  const roleValue = row?.role;
+  return String(
+    row?.role_name ||
+      (roleValue && typeof roleValue === "object" ? roleValue.name || roleValue.slug : roleValue) ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
 export default function TaskDetailsPage() {
   const { taskId } = useParams();
   const { state } = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const routeTask = state?.task && String(state.task.id || "") === String(taskId || "") ? state.task : null;
+  const roleText = String(user?.role || "").trim().toLowerCase();
+  const isEmployeeUser = roleText.includes("employee");
 
   const [task, setTask] = useState(routeTask);
   const [form, setForm] = useState(makeTaskForm(routeTask || {}));
@@ -151,9 +167,20 @@ export default function TaskDetailsPage() {
     return lookup;
   }, [projects]);
 
+  const employeeRows = useMemo(() => {
+    const filteredRows = allUserRows.filter((row) => getRoleText(row).includes("employee"));
+    if (filteredRows.length) return filteredRows;
+
+    const assignedId = String(getEntityId(task?.assigned_to) || "").trim();
+    if (!assignedId) return [];
+
+    const fallbackAssignedName = String(task?.assigned_to_name || "").trim() || "Assigned user";
+    return [{ id: assignedId, name: fallbackAssignedName, role: "Employee" }];
+  }, [allUserRows, task]);
+
   const assigneeOptions = useMemo(
-    () => allUserRows.map((row) => ({ id: String(row?.id || ""), label: buildUserLabel(row) })),
-    [allUserRows]
+    () => employeeRows.map((row) => ({ id: String(row?.id || ""), label: buildUserLabel(row) })),
+    [employeeRows]
   );
 
   const projectOptions = useMemo(
@@ -212,7 +239,9 @@ export default function TaskDetailsPage() {
       const payload = new FormData();
       appendFormValue(payload, "title", form.title.trim());
       appendFormValue(payload, "description", form.description.trim());
-      appendFormValue(payload, "assigned_to", form.assigned_to);
+      if (!isEmployeeUser) {
+        appendFormValue(payload, "assigned_to", form.assigned_to);
+      }
       appendFormValue(payload, "project", form.project);
       appendFormValue(payload, "status", form.status);
       appendFormValue(payload, "priority", form.priority);
@@ -242,7 +271,7 @@ export default function TaskDetailsPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Task Details</p>
               <h1 className="text-2xl font-bold text-slate-900">{task?.title || "Task"}</h1>
-              <p className="mt-1 text-sm text-slate-500">Task description, image, pdf and update form open here.</p>
+              <p className="mt-1 text-sm text-slate-500">Task description, image, PDF and editor open here.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button className="btn-secondary" onClick={() => navigate(-1)}>
@@ -250,7 +279,7 @@ export default function TaskDetailsPage() {
               </button>
               {!loading && !errorText && task ? (
                 <button className="btn-primary" onClick={() => setShowEditForm((value) => !value)}>
-                  {showEditForm ? "Close Update" : "Update Task"}
+                  {showEditForm ? "Close Editor" : "Edit Task"}
                 </button>
               ) : null}
             </div>
@@ -325,7 +354,7 @@ export default function TaskDetailsPage() {
 
             {showEditForm ? (
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Update Task</h2>
+                <h2 className="text-base font-semibold text-slate-900">Edit Task</h2>
                 <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={submitUpdate}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Title</span>
@@ -333,7 +362,7 @@ export default function TaskDetailsPage() {
                   </label>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Assigned To</span>
-                    <select className="input" value={form.assigned_to} onChange={(event) => setForm((value) => ({ ...value, assigned_to: event.target.value }))} required>
+                    <select className="input" value={form.assigned_to} onChange={(event) => setForm((value) => ({ ...value, assigned_to: event.target.value }))} required disabled={isEmployeeUser}>
                       <option value="">Select assignee</option>
                       {assigneeOptions.map((option) => (
                         <option key={option.id} value={option.id}>{option.label}</option>
@@ -357,7 +386,7 @@ export default function TaskDetailsPage() {
                     <span className="font-medium">Status</span>
                     <select className="input" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
                       {STATUS_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
+                        <option key={option} value={option}>{humanizeLabel(option)}</option>
                       ))}
                     </select>
                   </label>
@@ -365,7 +394,7 @@ export default function TaskDetailsPage() {
                     <span className="font-medium">Priority</span>
                     <select className="input" value={form.priority} onChange={(event) => setForm((value) => ({ ...value, priority: event.target.value }))}>
                       {PRIORITY_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
+                        <option key={option} value={option}>{humanizeLabel(option)}</option>
                       ))}
                     </select>
                   </label>
@@ -389,17 +418,17 @@ export default function TaskDetailsPage() {
                     <span className="font-medium">Replace Image</span>
                     <input className="input" type="file" accept="image/*" onChange={(event) => setForm((value) => ({ ...value, image: event.target.files?.[0] || null }))} />
                   </label>
-                  <button className="btn-primary md:col-span-2" disabled={saving}>{saving ? "Updating..." : "Update Task"}</button>
+                  <button className="btn-primary md:col-span-2" disabled={saving}>{saving ? "Saving..." : "Save Task"}</button>
                 </form>
               </section>
             ) : null}
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-base font-semibold text-slate-900">All Task Fields</h2>
+              <h2 className="text-base font-semibold text-slate-900">Task Details</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {visibleTaskFields.map(([key, value]) => (
                   <article key={key} className="rounded border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{key}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{humanizeLabel(key)}</p>
                     <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-800">{formatValue(value)}</pre>
                   </article>
                 ))}
