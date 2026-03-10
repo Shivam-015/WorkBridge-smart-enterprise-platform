@@ -95,7 +95,26 @@ const EMPTY_HR_OVERVIEW = {
 };
 
 function toArray(value) {
-  return Array.isArray(value) ? value : [];
+  if (Array.isArray(value)) return value;
+
+  if (value && typeof value === "object") {
+    const nestedCollections = [
+      value.results,
+      value.data,
+      value.items,
+      value.users,
+      value.projects,
+      value.tasks,
+      value.leaves,
+      value.attendance
+    ];
+
+    for (const candidate of nestedCollections) {
+      if (Array.isArray(candidate)) return candidate;
+    }
+  }
+
+  return [];
 }
 
 function toObject(value, fallback) {
@@ -186,6 +205,37 @@ function getLinkedCompanyUserId(row) {
   }
 
   return "";
+}
+
+function buildHrFallbackUserRows(attendanceRows, leaveRows, currentProfile) {
+  const mergedRows = [...toArray(attendanceRows), ...toArray(leaveRows)];
+  const userMap = new Map();
+
+  for (const row of mergedRows) {
+    const linkedId = getLinkedCompanyUserId(row);
+    if (!linkedId || userMap.has(String(linkedId))) continue;
+
+    userMap.set(String(linkedId), {
+      id: Number.isNaN(Number(linkedId)) ? linkedId : Number(linkedId),
+      name: String(row?.employee_name || getUserDisplayName(row) || "").trim() || "User",
+      email: String(row?.employee_email || row?.email || row?.user?.email || "").trim(),
+      role: String(row?.employee_role || row?.role_name || row?.role || "").trim() || "-",
+      status: String(row?.user_status || row?.status || "ACTIVE").trim() || "ACTIVE"
+    });
+  }
+
+  const currentId = currentProfile?.id;
+  if (currentId !== undefined && currentId !== null && !userMap.has(String(currentId))) {
+    userMap.set(String(currentId), {
+      id: currentId,
+      name: getUserDisplayName(currentProfile),
+      email: String(currentProfile?.email || "").trim(),
+      role: String(currentProfile?.role || "").trim() || "-",
+      status: String(currentProfile?.status || "ACTIVE").trim() || "ACTIVE"
+    });
+  }
+
+  return Array.from(userMap.values());
 }
 
 function buildProjectsWithTaskProgress(projectRows, taskRows) {
@@ -305,11 +355,10 @@ function StatCard({ label, value }) {
   );
 }
 
-function SectionTitle({ title, subtitle }) {
+function SectionTitle({ title }) {
   return (
     <header className="mb-3">
       <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-      {subtitle ? <p className="text-sm text-slate-500">{subtitle}</p> : null}
     </header>
   );
 }
@@ -480,11 +529,19 @@ export default function ManagerDashboardPage() {
     size: "",
     address: "",
     logo: "",
+    logo_file: null,
     owner: "",
     last_user_number: ""
   });
 
-  const [updateRoleForm, setUpdateRoleForm] = useState({ role_id: "", company: "", name: "", slug: "", level: "" });
+  const [updateRoleForm, setUpdateRoleForm] = useState({
+    role_id: "",
+    company: "",
+    name: "",
+    slug: "",
+    level: "",
+    ...Object.fromEntries(ROLE_PERMISSION_FIELDS.map((field) => [field, false]))
+  });
   const [updateUserForm, setUpdateUserForm] = useState({ user_id: "", name: "", role: "", status: "ACTIVE" });
 
   const [expandedTaskProgressId, setExpandedTaskProgressId] = useState("");
@@ -521,7 +578,8 @@ export default function ManagerDashboardPage() {
     ).trim();
 
     const directLogo = String(
-      currentUser?.company?.logo ||
+      companySettingsForm.logo ||
+        currentUser?.company?.logo ||
         currentUser?.company_logo ||
         user?.company?.logo ||
         (typeof user?.company_logo === "string" ? user.company_logo : "") ||
@@ -548,8 +606,20 @@ export default function ManagerDashboardPage() {
       name = String(fallbackName || "Company").trim();
     }
 
-    return { name, logo };
-  }, [companies, currentUser, user]);
+    const normalizedLogo = (() => {
+      const value = String(logo || "").trim();
+      if (!value) return "";
+      if (/^(https?:|data:|blob:)/i.test(value)) return value;
+
+      const mediaBase = String(import.meta.env.VITE_API_BASE_URL || "")
+        .replace(/\/api\/?$/, "")
+        .replace(/\/$/, "");
+
+      return mediaBase ? `${mediaBase}${value.startsWith("/") ? "" : "/"}${value}` : value;
+    })();
+
+    return { name, logo: normalizedLogo };
+  }, [companies, companySettingsForm.logo, currentUser, user]);
 
   const roleBackedCompanyId = useMemo(() => {
     for (const role of roles) {
@@ -688,6 +758,7 @@ export default function ManagerDashboardPage() {
         size: selectedCompany.size || "",
         address: selectedCompany.address || "",
         logo: selectedCompany.logo || "",
+        logo_file: null,
         owner: selectedCompany.owner ? String(selectedCompany.owner) : "",
         last_user_number: selectedCompany.last_user_number
           ? String(selectedCompany.last_user_number)
@@ -697,17 +768,15 @@ export default function ManagerDashboardPage() {
   };
 
   const loadManagerData = async () => {
-    const [overviewRes, projectsRes, myTaskRes, leaveRes, attendanceRes, userRes, teamRes, teamTaskRes, roleRes, managerTaskRes] = await Promise.all([
+    const [overviewRes, projectsRes, myTaskRes, leaveRes, attendanceRes, userRes, roleRes, managerTaskRes] = await Promise.all([
       fetchOr("/manager-overview/", EMPTY_MANAGER_OVERVIEW),
       fetchOr("/manager-projects/", []),
       fetchOr("/my-tasks/", []),
       fetchOr("/my-leaves/", []),
       fetchOr("/attendance/", []),
       fetchOr("/users/", []),
-      fetchOr("/team/", []),
-      fetchOr("/team-tasks/", []),
       fetchOr("/roles/", []),
-      fetchOr("/tasks/", [])
+      fetchOr("/all-tasks/", [])
     ]);
 
     setManagerOverview(toObject(overviewRes, EMPTY_MANAGER_OVERVIEW));
@@ -716,8 +785,9 @@ export default function ManagerDashboardPage() {
     setMyLeaves(toArray(leaveRes));
     setAttendanceRecords(toArray(attendanceRes));
     setUsers(toArray(userRes));
-    setTeamMembers(toArray(teamRes));
-    setTeamTasks(toArray(teamTaskRes));
+    setTeamMembers([]);
+    setTeamTasks([]);
+    setManagerProjectTeamsByProjectId({});
     setRoles(toArray(roleRes));
     setManagerScopedTasks(toArray(managerTaskRes));
   };
@@ -1135,14 +1205,19 @@ export default function ManagerDashboardPage() {
     const roleId = roleRow?.id;
     if (!roleId) return;
 
-    setUpdateRoleForm({
+    const nextState = {
       role_id: String(roleId),
       company: String(getEntityId(roleRow?.company) || createRoleForm.company || createUserForm.company_id || ""),
       name: String(roleRow?.name || ""),
       slug: String(roleRow?.slug || ""),
       level: String(roleRow?.level ?? "")
-    });
+    };
 
+    for (const field of ROLE_PERMISSION_FIELDS) {
+      nextState[field] = Boolean(roleRow?.[field]);
+    }
+
+    setUpdateRoleForm(nextState);
     setNoticeText("Role selected for update.");
   };
 
@@ -1187,7 +1262,8 @@ export default function ManagerDashboardPage() {
       name: String(updateRoleForm.name || "").trim() || undefined,
       slug: normalizedSlug || undefined,
       level,
-      company: numberOrNull(updateRoleForm.company)
+      company: numberOrNull(updateRoleForm.company),
+      ...Object.fromEntries(ROLE_PERMISSION_FIELDS.map((field) => [field, Boolean(updateRoleForm[field])]))
     });
 
     await runAction(`update-role-${roleId}`, async () => {
@@ -1445,30 +1521,30 @@ export default function ManagerDashboardPage() {
     const currentActive = projectRow?.is_active ?? true;
 
     const nextName =
-      typeof window !== "undefined" ? window.prompt("Update project name", currentName) : currentName;
+      typeof window !== "undefined" ? window.prompt("Edit project name", currentName) : currentName;
     if (nextName === null) return;
 
     const nextDescription =
       typeof window !== "undefined"
-        ? window.prompt("Update description", currentDescription)
+        ? window.prompt("Edit description", currentDescription)
         : currentDescription;
     if (nextDescription === null) return;
 
     const nextStartDate =
       typeof window !== "undefined"
-        ? window.prompt("Update start date (YYYY-MM-DD)", currentStartDate)
+        ? window.prompt("Edit start date (YYYY-MM-DD)", currentStartDate)
         : currentStartDate;
     if (nextStartDate === null) return;
 
     const nextEndDate =
       typeof window !== "undefined"
-        ? window.prompt("Update end date (YYYY-MM-DD)", currentEndDate)
+        ? window.prompt("Edit end date (YYYY-MM-DD)", currentEndDate)
         : currentEndDate;
     if (nextEndDate === null) return;
 
     const nextClient =
       typeof window !== "undefined"
-        ? window.prompt("Update client number (blank to keep current)", currentClient)
+        ? window.prompt("Edit client number (blank to keep current)", currentClient)
         : currentClient;
     if (nextClient === null) return;
 
@@ -1758,19 +1834,42 @@ export default function ManagerDashboardPage() {
     }, "Department created");
   };
 
+  const handleCompanyLogoChange = (e) => {
+    const file = e.target.files?.[0] || null;
+
+    if (!file) {
+      setCompanySettingsForm((s) => ({ ...s, logo_file: null }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCompanySettingsForm((s) => ({
+        ...s,
+        logo_file: file,
+        logo: typeof reader.result === "string" ? reader.result : s.logo
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const submitUpdateCompany = async (e) => {
     e.preventDefault();
     await runAction("update-company", async () => {
-      const payload = {
-        name: companySettingsForm.name,
-        email: companySettingsForm.email,
-        phone: companySettingsForm.phone,
-        size: companySettingsForm.size,
-        address: companySettingsForm.address,
-        logo: companySettingsForm.logo || null,
-        owner: numberOrNull(companySettingsForm.owner),
-        last_user_number: Number(companySettingsForm.last_user_number || 0)
-      };
+      const payload = new FormData();
+      payload.append("name", companySettingsForm.name);
+      payload.append("email", companySettingsForm.email);
+      payload.append("phone", companySettingsForm.phone);
+      payload.append("size", companySettingsForm.size);
+      payload.append("address", companySettingsForm.address);
+
+      const ownerId = numberOrNull(companySettingsForm.owner);
+      if (ownerId !== null) payload.append("owner", String(ownerId));
+      payload.append("last_user_number", String(Number(companySettingsForm.last_user_number || 0)));
+
+      if (companySettingsForm.logo_file) {
+        payload.append("logo", companySettingsForm.logo_file);
+      }
 
       try {
         await putData(`/companies/${companySettingsForm.id}/`, payload);
@@ -1811,7 +1910,7 @@ export default function ManagerDashboardPage() {
               onClick={() => updateRoleFromList(row)}
               disabled={disabled}
             >
-              {updating ? "Updating..." : "Update"}
+              {updating ? "Saving..." : "Edit"}
             </button>
             <button
               type="button"
@@ -2182,7 +2281,7 @@ export default function ManagerDashboardPage() {
   }, [taskAnalytics, ownerTasks]);
 
   const managerAllTasks = useMemo(() => {
-    const merged = [...toArray(teamTasks), ...toArray(managerScopedTasks), ...toArray(myTasks)];
+    const merged = [...toArray(managerScopedTasks), ...toArray(myTasks)];
     const seen = new Set();
     const rows = [];
 
@@ -2198,26 +2297,14 @@ export default function ManagerDashboardPage() {
     }
 
     return rows;
-  }, [managerScopedTasks, myTasks, teamTasks]);
+  }, [managerScopedTasks, myTasks]);
 
   const managerOwnTaskRows = useMemo(() => {
     const managerUserId = String(getEntityId(currentUser?.id) || "");
     if (!managerUserId) return [];
 
-    const merged = [...toArray(myTasks), ...toArray(teamTasks)];
-    const seen = new Set();
-    const rows = [];
-
-    for (const task of merged) {
-      const taskId = String(task?.id || "");
-      const assignedId = String(getEntityId(task?.assigned_to) || "");
-      if (!taskId || assignedId !== managerUserId || seen.has(taskId)) continue;
-      seen.add(taskId);
-      rows.push(task);
-    }
-
-    return rows;
-  }, [currentUser, myTasks, teamTasks]);
+    return toArray(myTasks).filter((task) => String(getEntityId(task?.assigned_to) || "") === managerUserId);
+  }, [currentUser, myTasks]);
 
   const managerTeamTaskRows = useMemo(() => {
     const managerUserId = String(getEntityId(currentUser?.id) || "");
@@ -2240,20 +2327,7 @@ export default function ManagerDashboardPage() {
     return rows;
   }, [currentUser, teamMembers, teamTasks]);
 
-  const managerVisibleTaskRows = useMemo(() => {
-    const merged = [...managerOwnTaskRows, ...managerTeamTaskRows];
-    const seen = new Set();
-    const rows = [];
-
-    for (const task of merged) {
-      const taskId = String(task?.id || "");
-      if (!taskId || seen.has(taskId)) continue;
-      seen.add(taskId);
-      rows.push(task);
-    }
-
-    return rows;
-  }, [managerOwnTaskRows, managerTeamTaskRows]);
+  const managerVisibleTaskRows = useMemo(() => toArray(managerAllTasks), [managerAllTasks]);
 
   const managerTaskMetrics = useMemo(() => {
     const todayISO = new Date().toISOString().slice(0, 10);
@@ -2288,9 +2362,14 @@ export default function ManagerDashboardPage() {
     [ownerProjects, ownerTasks]
   );
 
+  const clientProjectsWithProgress = useMemo(
+    () => buildProjectsWithTaskProgress(clientProjects, []),
+    [clientProjects]
+  );
+
   const managerProjectRowsWithProgress = useMemo(
-    () => buildProjectsWithTaskProgress(managerProjectRows, teamTasks),
-    [managerProjectRows, teamTasks]
+    () => buildProjectsWithTaskProgress(managerProjectRows, managerScopedTasks),
+    [managerProjectRows, managerScopedTasks]
   );
 
   const managerProjectTeamGroups = useMemo(
@@ -2322,13 +2401,13 @@ export default function ManagerDashboardPage() {
       in_progress_tasks: managerTaskMetrics.in_progress_tasks,
       overdue_tasks: managerTaskMetrics.overdue_tasks,
       team_members_count:
-        teamMemberIds.size > 0
-          ? teamMemberIds.size
-          : teamMembers.length > 0
-            ? teamMembers.length
+        users.length > 0
+          ? users.length
+          : teamMemberIds.size > 0
+            ? teamMemberIds.size
             : Number(apiOverview.team_members_count || 0)
     };
-  }, [managerOverview, managerProjectRows, managerProjectTeamGroups, managerTaskMetrics, teamMembers]);
+  }, [managerOverview, managerProjectRows, managerProjectTeamGroups, managerTaskMetrics, users]);
 
   const userColumns = [
     {
@@ -2419,9 +2498,9 @@ export default function ManagerDashboardPage() {
               className="btn-secondary !px-2 !py-1 text-xs"
               onClick={(e) => { e.stopPropagation(); updateUserFromList(row); }}
               disabled={disabled}
-              title={permissions.can_manage_users ? "Update user" : "No permission"}
+              title={permissions.can_manage_users ? "Edit user" : "No permission"}
             >
-              {updating ? "Updating..." : "Update"}
+              {updating ? "Saving..." : "Edit"}
             </button>
             <button
               type="button"
@@ -2503,7 +2582,7 @@ export default function ManagerDashboardPage() {
   });
 
   const managerUserMetrics = useMemo(() => {
-    const rows = toArray(teamMembers);
+    const rows = toArray(users);
     const roleTexts = rows.map((row) => getRoleText(row));
 
     return {
@@ -2512,7 +2591,7 @@ export default function ManagerDashboardPage() {
       managers: roleTexts.filter((text) => text.includes("manager")).length,
       employees: roleTexts.filter((text) => text.includes("employee")).length
     };
-  }, [teamMembers]);
+  }, [users]);
 
   const ownerProjectMetrics = useMemo(() => {
     const rows = ownerProjectsWithProgress;
@@ -2525,14 +2604,21 @@ export default function ManagerDashboardPage() {
     };
   }, [ownerProjectsWithProgress]);
 
+  const hrVisibleUsers = useMemo(() => {
+    const directRows = toArray(users);
+    if (directRows.length) return directRows;
+
+    return buildHrFallbackUserRows(attendanceRecords, hrLeaves, currentUser);
+  }, [attendanceRecords, currentUser, hrLeaves, users]);
+
   const hrEmployeeRows = useMemo(() => {
-    const rows = toArray(users);
+    const rows = toArray(hrVisibleUsers);
     const filtered = rows.filter((row) => {
       const roleText = getRoleText(row);
       return roleText.includes("employee") || roleText.includes("manager");
     });
     return filtered.length ? filtered : rows;
-  }, [users]);
+  }, [hrVisibleUsers]);
 
   const hrUserNameById = useMemo(() => {
     const lookup = {};
@@ -3097,7 +3183,7 @@ export default function ManagerDashboardPage() {
           {activeMenu === "owner-roles" || activeMenu === "manager-roles" || activeMenu === "hr-roles" ? (
             <>
               <section className="card">
-                <SectionTitle title="Create Role" subtitle="POST /api/roles/" />
+                <SectionTitle title="New Role" subtitle="POST /api/roles/" />
                 <form className="space-y-3" onSubmit={submitCreateRole}>
                   <div className="grid gap-3 md:grid-cols-2">
                     <label className="space-y-1 text-sm text-slate-700">
@@ -3121,7 +3207,44 @@ export default function ManagerDashboardPage() {
                       </label>
                     ))}
                   </div>
-                  <button className="btn-primary" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Creating..." : "Create Role"}</button>
+                  <button className="btn-primary" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
+                </form>
+              </section>
+              <section className="card">
+                <SectionTitle title="Edit Role" subtitle="PATCH /api/roles/:id/" />
+                <form className="space-y-3" onSubmit={submitUpdateRole}>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="space-y-1 text-sm text-slate-700">
+                      <span className="font-medium">Role</span>
+                      <select className="input" value={updateRoleForm.role_id} onChange={(e) => handleUpdateRoleSelection(e.target.value)} required>
+                        <option value="">Select role</option>
+                        {roles.map((role) => (
+                          <option key={role.id} value={role.id}>{role?.name || role?.slug || `Role ${role.id}`}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-sm text-slate-700">
+                      <span className="font-medium">Company</span>
+                      <select className="input" value={updateRoleForm.company} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                        <option value="">Select company</option>
+                        {companyOptions.map((companyOption) => (
+                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="input" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="input" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                    {ROLE_PERMISSION_FIELDS.map((field) => (
+                      <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
+                        <input type="checkbox" checked={Boolean(updateRoleForm[field])} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
+                        <span>{field}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <button className="btn-primary" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Role"}</button>
                 </form>
               </section>
               <section className="card">
@@ -3134,7 +3257,7 @@ export default function ManagerDashboardPage() {
           {activeMenu === "owner-users" ? (
             <>
               <section className="card">
-                <SectionTitle title="Create User" subtitle="POST /api/create-user/" />
+                <SectionTitle title="New User" subtitle="POST /api/create-user/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Company</span>
@@ -3156,7 +3279,7 @@ export default function ManagerDashboardPage() {
                       ))}
                     </select>
                   </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Submitting..." : "Create User"}</button>
+                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
                 </form>
               </section>
               <section className="card">
@@ -3169,7 +3292,7 @@ export default function ManagerDashboardPage() {
           {activeMenu === "manager-users" ? (
             <>
               <section className="card">
-                <SectionTitle title="Create User" subtitle="POST /api/create-user/" />
+                <SectionTitle title="New User" subtitle="POST /api/create-user/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Company</span>
@@ -3191,7 +3314,7 @@ export default function ManagerDashboardPage() {
                       ))}
                     </select>
                   </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Submitting..." : "Create User"}</button>
+                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
                 </form>
               </section>
               <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -3201,8 +3324,8 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Employees" value={managerUserMetrics.employees} />
               </section>
               <section className="card">
-                <SectionTitle title="User List" subtitle="Team members only" />
-                <DataTable columns={managerUserListColumns} rows={teamMembers} emptyText="No team members" onRowClick={openUserDetails} />
+                <SectionTitle title="User List" subtitle="GET /api/users/" />
+                <DataTable columns={managerUserListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
             </>
           ) : null}
@@ -3215,20 +3338,20 @@ export default function ManagerDashboardPage() {
                 <StatCard label="On Hold" value={ownerProjectMetrics.on_hold_projects} />
               </section>
               <section className="card">
-                <SectionTitle title="Create Project" subtitle="POST /api/projects/" />
+                <SectionTitle title="New Project" subtitle="POST /api/projects/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="input" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="input" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option>ACTIVE</option><option>COMPLETED</option><option>ON_HOLD</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="input" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="input" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="input" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="input" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="input" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> is_active</label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Creating..." : "Create Project"}</button>
+                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
+                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
                 </form>
               </section>
               <section className="card">
@@ -3240,21 +3363,21 @@ export default function ManagerDashboardPage() {
           {activeMenu === "owner-tasks" ? (
             <>
               <section className="card">
-                <SectionTitle title="Create Task" subtitle="POST /api/tasks/" />
+                <SectionTitle title="New Task" subtitle="POST /api/tasks/" />
                 {permissions.can_assign_task ? (
                   <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="input" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="input" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="input" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="input" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option>PENDING</option><option>IN_PROGRESS</option><option>COMPLETED</option></select></label>
+                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="input" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="input" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="input" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="input" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
                     <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="input" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
                     <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
-                    <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Creating..." : "Create Task"}</button>
+                    <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Save Task"}</button>
                   </form>
                 ) : (
                   <p className="text-sm text-slate-500">You do not have permission to create tasks.</p>
@@ -3283,9 +3406,9 @@ export default function ManagerDashboardPage() {
                 <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Size</span><input className="input" value={companySettingsForm.size} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, size: e.target.value }))} required /></label>
                 <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Owner</span><input className="input" value={companySettingsForm.owner} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, owner: e.target.value }))} /></label>
                 <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Last User Number</span><input className="input" value={companySettingsForm.last_user_number} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, last_user_number: e.target.value }))} /></label>
-                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Logo Url</span><input className="input" value={companySettingsForm.logo} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, logo: e.target.value }))} /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Logo</span><input className="input" type="file" accept="image/*" onChange={handleCompanyLogoChange} /></label>
                 <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Address</span><textarea className="input min-h-24 md:col-span-2" value={companySettingsForm.address} onChange={(e) => setCompanySettingsForm((s) => ({ ...s, address: e.target.value }))} /></label>
-                <button className="btn-primary md:col-span-2" disabled={busyKey === "update-company"}>{busyKey === "update-company" ? "Updating..." : "Update Company"}</button>
+                <button className="btn-primary md:col-span-2" disabled={busyKey === "update-company"}>{busyKey === "update-company" ? "Saving..." : "Save Company"}</button>
               </form>
             </section>
           ) : null}
@@ -3300,7 +3423,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Pending" value={managerOverviewCards.pending_tasks} />
                 <StatCard label="In Progress" value={managerOverviewCards.in_progress_tasks} />
                 <StatCard label="Overdue" value={managerOverviewCards.overdue_tasks} />
-                <StatCard label="Team Members" value={managerOverviewCards.team_members_count} />
+                <StatCard label="Users" value={managerOverviewCards.team_members_count} />
               </div>
               <section className="card">
                 <SectionTitle title="My Projects" subtitle="Projects where you are the manager" />
@@ -3325,24 +3448,24 @@ export default function ManagerDashboardPage() {
                 <StatCard label="On Hold" value={managerProjectMetrics.on_hold_projects} />
               </section>
               <section className="card">
-                <SectionTitle title="Create Project" subtitle="POST /api/projects/" />
+                <SectionTitle title="New Project" subtitle="POST /api/projects/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="input" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="input" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option>ACTIVE</option><option>COMPLETED</option><option>ON_HOLD</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="input" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="input" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="input" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="input" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="input" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> is_active</label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Creating..." : "Create Project"}</button>
+                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
+                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
                 </form>
               </section>
               <section className="card">
-                <SectionTitle title="Project List" subtitle="Click a project to open description and update" />
+                <SectionTitle title="Project List" subtitle="Click a project to open full details and edit" />
                 <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
             </>
@@ -3355,25 +3478,25 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Overdue" value={managerTaskMetrics.overdue_tasks} />
               </section>
               <section className="card">
-                <SectionTitle title="Create Task" subtitle="POST /api/tasks/" />
+                <SectionTitle title="New Task" subtitle="POST /api/tasks/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="input" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="input" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="input" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="input" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option>PENDING</option><option>IN_PROGRESS</option><option>COMPLETED</option></select></label>
+                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="input" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="input" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="input" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="input" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="input" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="input" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
                   <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>Create Task</button>
+                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>Save Task</button>
                 </form>
               </section>
               <section className="card">
-                <SectionTitle title="Team Task List" subtitle="Click a task to open description and update" />
-                <DataTable columns={dashboardTaskListColumns} rows={managerVisibleTaskRows} emptyText="No team tasks" onRowClick={openTaskDetails} />
+                <SectionTitle title="Task List" subtitle="GET /api/all-tasks/" />
+                <DataTable columns={dashboardTaskListColumns} rows={managerVisibleTaskRows} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
           ) : null}
@@ -3387,11 +3510,11 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Total Projects" value={employeeDashboardMetrics.total_projects} />
               </section>
               <section className="card">
-                <SectionTitle title="Projects List" subtitle="Projects linked to assigned tasks" />
+                <SectionTitle title="Projects List" subtitle="Projects linked to assigned work" />
                 <DataTable columns={projectColumns} rows={employeeAssignedProjectRows} emptyText="No assigned projects" />
               </section>
               <section className="card">
-                <SectionTitle title="Assigned Tasks" subtitle="Click a task row to open full details and update" />
+                <SectionTitle title="Assigned Tasks" subtitle="Click a task row to open full details and edit" />
                 <DataTable columns={dashboardTaskListColumns} rows={employeeTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
@@ -3413,7 +3536,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Pending Leaves" value={hrOverview.leave_summary?.pending} />
               </div>
               <section className="card">
-                <SectionTitle title="Create Employee" subtitle="POST /api/create-user/" />
+                <SectionTitle title="New Employee" subtitle="POST /api/create-user/" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Company</span>
@@ -3435,12 +3558,12 @@ export default function ManagerDashboardPage() {
                       ))}
                     </select>
                   </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Creating..." : "Create Employee"}</button>
+                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save Employee"}</button>
                 </form>
               </section>
               <section className="card">
-                <SectionTitle title="Employee List" subtitle="Basic details. Click a row to open full description." />
-                <DataTable columns={userListColumns} rows={hrEmployeeRows} emptyText="No users" onRowClick={openUserDetails} />
+                <SectionTitle title="User List" subtitle="GET /api/users/" />
+                <DataTable columns={userListColumns} rows={hrVisibleUsers} emptyText="No users" onRowClick={openUserDetails} />
               </section>
             </>
           ) : null}
@@ -3452,7 +3575,7 @@ export default function ManagerDashboardPage() {
                 <DataTable columns={hrAttendanceColumns} rows={attendanceRecords} emptyText="No attendance records" />
               </section>
               <section className="card">
-                <SectionTitle title="Leave Approvals" subtitle="Approve or reject employee leaves" />
+                <SectionTitle title="Leave Approvals" subtitle="Review employee leaves" />
                 <DataTable columns={hrLeaveApprovalColumns} rows={hrLeaves} emptyText="No leave requests" />
               </section>
               <section className="card">
@@ -3501,11 +3624,11 @@ export default function ManagerDashboardPage() {
                 />
               </section>
               <section className="card">
-                <SectionTitle title="Create Department" subtitle="POST /api/departments/" />
+                <SectionTitle title="New Department" subtitle="POST /api/departments/" />
                 <form className="space-y-3" onSubmit={submitCreateDepartment}>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="input" value={departmentForm.name} onChange={(e) => setDepartmentForm((s) => ({ ...s, name: e.target.value }))} required /></label>
                   <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Description</span><textarea className="input min-h-24" value={departmentForm.description} onChange={(e) => setDepartmentForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <button className="btn-primary" disabled={busyKey === "create-department"}>Create Department</button>
+                  <button className="btn-primary" disabled={busyKey === "create-department"}>Save Department</button>
                 </form>
               </section>
             </>
@@ -3514,7 +3637,7 @@ export default function ManagerDashboardPage() {
           {activeMenu === "client-dashboard" ? (
             <section className="card">
               <SectionTitle title="Client Dashboard" subtitle="GET /api/client-projects/" />
-              <DataTable columns={projectColumns} rows={clientProjects} emptyText="No client projects" />
+              <DataTable columns={projectColumns} rows={clientProjectsWithProgress} emptyText="No client projects" />
             </section>
           ) : null}
         </section>
@@ -3522,6 +3645,7 @@ export default function ManagerDashboardPage() {
     </main>
   );
 }
+
 
 
 

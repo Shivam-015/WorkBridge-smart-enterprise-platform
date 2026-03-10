@@ -7,6 +7,7 @@ import {
   extractError,
   formatValue,
   getEntityId,
+  humanizeLabel,
   mergeRowsById,
   toArray
 } from "./detailHelpers";
@@ -207,7 +208,7 @@ export default function UserDetailsPage() {
               </button>
               {!loading && !errorText && userRow ? (
                 <button className="btn-primary" onClick={() => setShowEditForm((value) => !value)}>
-                  {showEditForm ? "Close Update" : "Update User"}
+                  {showEditForm ? "Close Editor" : "Edit User"}
                 </button>
               ) : null}
             </div>
@@ -264,7 +265,7 @@ export default function UserDetailsPage() {
 
             {showEditForm ? (
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-semibold text-slate-900">Update User</h2>
+                <h2 className="text-base font-semibold text-slate-900">Edit User</h2>
                 <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={submitUpdate}>
                   <label className="space-y-1 text-sm text-slate-700">
                     <span className="font-medium">Name</span>
@@ -282,22 +283,22 @@ export default function UserDetailsPage() {
                   <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
                     <span className="font-medium">Status</span>
                     <select className="input" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="INVITED">INVITED</option>
-                      <option value="INACTIVE">INACTIVE</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="INVITED">Invited</option>
+                      <option value="INACTIVE">Inactive</option>
                     </select>
                   </label>
-                  <button className="btn-primary md:col-span-2" disabled={saving}>{saving ? "Updating..." : "Update User"}</button>
+                  <button className="btn-primary md:col-span-2" disabled={saving}>{saving ? "Saving..." : "Save User"}</button>
                 </form>
               </section>
             ) : null}
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-base font-semibold text-slate-900">All User Fields</h2>
+              <h2 className="text-base font-semibold text-slate-900">User Details</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {allFields.map(([key, value]) => (
                   <article key={key} className="rounded border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{key}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{humanizeLabel(key)}</p>
                     <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-800">{formatValue(value)}</pre>
                   </article>
                 ))}
