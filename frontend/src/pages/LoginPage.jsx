@@ -33,27 +33,32 @@ export default function LoginPage() {
     >
       <form
         onSubmit={submit}
-        className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
-        style={{ border: "1px solid rgba(30,64,175,0.12)" }}
+        className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden bg-white"
+        style={{ border: "1px solid rgba(30,64,175,0.15)" }}
       >
-        {/* Top blue banner with logo + title */}
+        {/* Logo + title area — light background */}
         <div
-          className="flex flex-col items-center px-8 pt-10 pb-8"
-          style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 55%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7" }}
+          className="flex flex-col items-center px-8 pt-10 pb-7"
+          style={{ background: "linear-gradient(160deg, #f0f5ff 0%, #e8eef8 100%)", borderBottom: "2px solid #dbeafe" }}
         >
-          <img
-            src={logo}
-            alt="WorkBridge Logo"
-            className="h-20 w-20 rounded-full object-cover mb-5"
-            style={{ border: "3px solid rgba(255,255,255,0.3)", boxShadow: "0 0 0 5px rgba(255,255,255,0.08)" }}
-          />
+          <div
+            className="mb-5"
+            style={{ padding: 5, borderRadius: "50%", background: "linear-gradient(135deg, #1e3a8a, #2563eb)", boxShadow: "0 4px 18px rgba(30,58,138,0.25)" }}
+          >
+            <img
+              src={logo}
+              alt="WorkBridge Logo"
+              className="h-20 w-20 rounded-full object-cover block"
+              style={{ border: "3px solid #fff" }}
+            />
+          </div>
           <h1
-            className="text-3xl font-extrabold text-white tracking-wide"
+            className="text-3xl font-extrabold text-blue-900 tracking-wide"
             style={{ fontFamily: "'Georgia', serif" }}
           >
             WorkBridge
           </h1>
-          <p className="mt-1.5 text-base font-semibold" style={{ color: "#93c5fd" }}>
+          <p className="mt-1.5 text-base font-semibold text-blue-600">
             Company Dashboard
           </p>
         </div>

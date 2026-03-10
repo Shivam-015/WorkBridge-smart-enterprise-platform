@@ -3502,29 +3502,29 @@ export default function ManagerDashboardPage() {
                 </div>
               </div>
 
-              {/* Swim lane layout: Projects | Tasks side by side */}
-              <div className="grid gap-4 lg:grid-cols-2">
-                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
-                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #2563eb15, #2563eb08)", borderBottom: "2px solid #2563eb" }}>
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2563eb" }} />
-                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Projects</span>
-                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{managerProjectRowsWithProgress.length}</span>
-                  </div>
-                  <div className="p-4">
-                    <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
-                  </div>
-                </section>
-                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
-                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #0891b215, #0891b208)", borderBottom: "2px solid #0891b2" }}>
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#0891b2" }} />
-                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Tasks</span>
-                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#cffafe", color: "#0891b2" }}>{managerOwnTaskRows.length}</span>
-                  </div>
-                  <div className="p-4">
-                    <DataTable columns={dashboardTaskListColumns} rows={managerOwnTaskRows} emptyText="No tasks assigned to manager" onRowClick={openTaskDetails} />
-                  </div>
-                </section>
-              </div>
+              {/* Projects full width */}
+              <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #2563eb15, #2563eb08)", borderBottom: "2px solid #2563eb" }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2563eb" }} />
+                  <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Projects</span>
+                  <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{managerProjectRowsWithProgress.length}</span>
+                </div>
+                <div className="p-4">
+                  <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
+                </div>
+              </section>
+
+              {/* Tasks full width */}
+              <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #0891b215, #0891b208)", borderBottom: "2px solid #0891b2" }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#0891b2" }} />
+                  <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Tasks</span>
+                  <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#cffafe", color: "#0891b2" }}>{managerOwnTaskRows.length}</span>
+                </div>
+                <div className="p-4">
+                  <DataTable columns={dashboardTaskListColumns} rows={managerOwnTaskRows} emptyText="No tasks assigned to manager" onRowClick={openTaskDetails} />
+                </div>
+              </section>
 
               {/* Leaves full width */}
               <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
@@ -3640,30 +3640,29 @@ export default function ManagerDashboardPage() {
                 </div>
               </div>
 
-              {/* Two column: projects left, tasks right */}
-              <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
-                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
-                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #7c3aed15, #7c3aed08)", borderBottom: "2px solid #7c3aed" }}>
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#7c3aed" }} />
-                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Projects</span>
-                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#ede9fe", color: "#7c3aed" }}>{employeeAssignedProjectRows.length}</span>
-                  </div>
-                  <div className="p-4">
-                    <DataTable columns={projectColumns} rows={employeeAssignedProjectRows} emptyText="No assigned projects" />
-                  </div>
-                </section>
+              {/* Projects full width */}
+              <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #7c3aed15, #7c3aed08)", borderBottom: "2px solid #7c3aed" }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#7c3aed" }} />
+                  <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Projects</span>
+                  <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#ede9fe", color: "#7c3aed" }}>{employeeAssignedProjectRows.length}</span>
+                </div>
+                <div className="p-4">
+                  <DataTable columns={projectColumns} rows={employeeAssignedProjectRows} emptyText="No assigned projects" />
+                </div>
+              </section>
 
-                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
-                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #2563eb15, #2563eb08)", borderBottom: "2px solid #2563eb" }}>
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2563eb" }} />
-                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Tasks</span>
-                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{employeeTasks.length}</span>
-                  </div>
-                  <div className="p-4">
-                    <DataTable columns={dashboardTaskListColumns} rows={employeeTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
-                  </div>
-                </section>
-              </div>
+              {/* Tasks full width */}
+              <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
+                <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #2563eb15, #2563eb08)", borderBottom: "2px solid #2563eb" }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2563eb" }} />
+                  <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Tasks</span>
+                  <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{employeeTasks.length}</span>
+                </div>
+                <div className="p-4">
+                  <DataTable columns={dashboardTaskListColumns} rows={employeeTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
+                </div>
+              </section>
             </>
           ) : null}
 
@@ -3690,41 +3689,37 @@ export default function ManagerDashboardPage() {
                     }} />
                   </div>
                 </div>
-                {/* Two panels */}
-                <div className="grid grid-cols-2 divide-x bg-white mt-2" style={{ borderTop: "1px solid #f0f5ff" }}>
-                  {/* Attendance panel */}
-                  <div className="p-4">
-                    <p className="text-xs font-extrabold uppercase tracking-widest mb-3" style={{ color: "#1d4ed899" }}>Today's Attendance</p>
-                    <div className="space-y-2">
-                      {[
-                        { label: "Present", value: hrOverview.attendance?.present, color: "#16a34a", bg: "#f0fdf4" },
-                        { label: "Absent", value: hrOverview.attendance?.absent, color: "#dc2626", bg: "#fef2f2" },
-                        { label: "Half Day", value: hrOverview.attendance?.half_day, color: "#d97706", bg: "#fffbeb" },
-                        { label: "On Leave", value: hrOverview.attendance?.on_leave, color: "#0891b2", bg: "#ecfeff" },
-                      ].map((item) => (
-                        <div key={item.label} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: item.bg }}>
-                          <span className="text-xs font-bold" style={{ color: item.color }}>{item.label}</span>
-                          <span className="text-base font-extrabold" style={{ color: item.color, fontFamily: "'Georgia', serif" }}>{item.value ?? 0}</span>
-                        </div>
-                      ))}
-                    </div>
+                {/* Stat cards grid - attendance */}
+                <div className="p-4 bg-white" style={{ borderTop: "1px solid #f0f5ff" }}>
+                  <p className="text-xs font-extrabold uppercase tracking-widest mb-3" style={{ color: "#1d4ed899" }}>Today's Attendance</p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[
+                      { label: "Present", value: hrOverview.attendance?.present, color: "#16a34a" },
+                      { label: "Absent", value: hrOverview.attendance?.absent, color: "#dc2626" },
+                      { label: "Half Day", value: hrOverview.attendance?.half_day, color: "#d97706" },
+                      { label: "On Leave", value: hrOverview.attendance?.on_leave, color: "#0891b2" },
+                    ].map((item) => (
+                      <article key={item.label} className="rounded-lg bg-white p-3 shadow-sm" style={{ border: "1px solid #e0eaff", borderLeft: `3px solid ${item.color}`, position: "relative", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", top: -8, right: -8, width: 32, height: 32, borderRadius: "50%", background: item.color + "12", pointerEvents: "none" }} />
+                        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: item.color + "99" }}>{item.label}</p>
+                        <p className="mt-1 text-xl font-extrabold" style={{ fontFamily: "'Georgia', serif", color: item.color }}>{item.value ?? 0}</p>
+                      </article>
+                    ))}
                   </div>
-                  {/* Leave panel */}
-                  <div className="p-4">
-                    <p className="text-xs font-extrabold uppercase tracking-widest mb-3" style={{ color: "#1d4ed899" }}>Leave Summary</p>
-                    <div className="space-y-2">
-                      {[
-                        { label: "Approved", value: hrOverview.leave_summary?.approved, color: "#16a34a", bg: "#f0fdf4" },
-                        { label: "Pending", value: hrOverview.leave_summary?.pending, color: "#d97706", bg: "#fffbeb" },
-                        { label: "Rejected", value: hrOverview.leave_summary?.rejected, color: "#dc2626", bg: "#fef2f2" },
-                        { label: "Total Staff", value: hrOverview.total_employees, color: "#1d4ed8", bg: "#eff6ff" },
-                      ].map((item) => (
-                        <div key={item.label} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: item.bg }}>
-                          <span className="text-xs font-bold" style={{ color: item.color }}>{item.label}</span>
-                          <span className="text-base font-extrabold" style={{ color: item.color, fontFamily: "'Georgia', serif" }}>{item.value ?? 0}</span>
-                        </div>
-                      ))}
-                    </div>
+                  <p className="text-xs font-extrabold uppercase tracking-widest mb-3 mt-4" style={{ color: "#1d4ed899" }}>Leave Summary</p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[
+                      { label: "Approved", value: hrOverview.leave_summary?.approved, color: "#16a34a" },
+                      { label: "Pending", value: hrOverview.leave_summary?.pending, color: "#d97706" },
+                      { label: "Rejected", value: hrOverview.leave_summary?.rejected, color: "#dc2626" },
+                      { label: "Total Staff", value: hrOverview.total_employees, color: "#1d4ed8" },
+                    ].map((item) => (
+                      <article key={item.label} className="rounded-lg bg-white p-3 shadow-sm" style={{ border: "1px solid #e0eaff", borderLeft: `3px solid ${item.color}`, position: "relative", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", top: -8, right: -8, width: 32, height: 32, borderRadius: "50%", background: item.color + "12", pointerEvents: "none" }} />
+                        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: item.color + "99" }}>{item.label}</p>
+                        <p className="mt-1 text-xl font-extrabold" style={{ fontFamily: "'Georgia', serif", color: item.color }}>{item.value ?? 0}</p>
+                      </article>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -3846,14 +3841,14 @@ export default function ManagerDashboardPage() {
             <>
               {/* Client portfolio header */}
               <div className="rounded-2xl overflow-hidden shadow-sm" style={{ border: "1px solid #dbeafe" }}>
-                <div className="px-6 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, #0c2340 0%, #1a4a8f 100%)" }}>
+                <div className="px-6 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)", border: "1px solid #bfdbfe" }}>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "#7dd3fc" }}>Project Portfolio</p>
-                    <p className="text-xl font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>Your Active Projects</p>
+                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "#1d4ed8" }}>Project Portfolio</p>
+                    <p className="text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Your Active Projects</p>
                   </div>
                   <div className="text-right">
-                    <span className="text-4xl font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>{clientProjectsWithProgress.length}</span>
-                    <p className="text-xs font-semibold mt-0.5" style={{ color: "#7dd3fc" }}>total projects</p>
+                    <span className="text-4xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{clientProjectsWithProgress.length}</span>
+                    <p className="text-xs font-semibold mt-0.5 text-blue-600">total projects</p>
                   </div>
                 </div>
               </div>
@@ -3861,7 +3856,7 @@ export default function ManagerDashboardPage() {
               {/* Project cards grid */}
               {clientProjectsWithProgress.length === 0 ? (
                 <div className="rounded-2xl bg-white p-10 text-center shadow-sm" style={{ border: "1px solid #dbeafe" }}>
-                  <p className="text-4xl mb-3">🏢</p>
+                  <div className="h-12 w-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: "#dbeafe" }}><svg width="24" height="24" fill="none" stroke="#1d4ed8" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg></div>
                   <p className="text-base font-bold text-blue-900">No projects assigned yet</p>
                   <p className="text-sm text-slate-500 mt-1">Your projects will appear here once assigned.</p>
                 </div>
@@ -3893,9 +3888,9 @@ export default function ManagerDashboardPage() {
                             <p className="text-sm text-slate-500 mb-4 line-clamp-3">{project.description}</p>
                           ) : null}
                           <div className="space-y-2 text-sm text-slate-500 mb-4">
-                            {project.start_date ? <p>📅 Start: <span className="font-semibold text-slate-700">{project.start_date}</span></p> : null}
-                            {project.end_date ? <p>🏁 Due: <span className="font-semibold text-slate-700">{project.end_date}</span></p> : null}
-                            {project.priority ? <p>⚡ Priority: <span className="font-semibold text-slate-700">{project.priority}</span></p> : null}
+                            {project.start_date ? <p><span className="font-bold text-slate-400 uppercase tracking-wide text-xs">Start</span> <span className="font-semibold text-slate-700">{project.start_date}</span></p> : null}
+                            {project.end_date ? <p><span className="font-bold text-slate-400 uppercase tracking-wide text-xs">Due</span> <span className="font-semibold text-slate-700">{project.end_date}</span></p> : null}
+                            {project.priority ? <p><span className="font-bold text-slate-400 uppercase tracking-wide text-xs">Priority</span> <span className="font-semibold text-slate-700">{project.priority}</span></p> : null}
                           </div>
                           {/* Progress bar */}
                           <div>
@@ -3920,3 +3915,4 @@ export default function ManagerDashboardPage() {
     </main>
   );
 }
+
