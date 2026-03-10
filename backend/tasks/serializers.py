@@ -1,8 +1,5 @@
 from rest_framework import serializers
-
 from companies.models import CompanyUser
-from projects.models import ProjectTeam
-
 from .models import Task
 
 
@@ -87,14 +84,5 @@ class TaskSerializer(serializers.ModelSerializer):
                         role__level__gte=40,
                         role__level__lt=70
                     )
-
-                    project_id = request.data.get("project")
-
-                    if project_id:
-                        team_members = ProjectTeam.objects.filter(
-                            project_id=project_id
-                        ).values_list("member_id", flat=True)
-
-                        queryset = queryset.filter(id__in=team_members)
 
                     self.fields["assigned_to"].queryset = queryset
