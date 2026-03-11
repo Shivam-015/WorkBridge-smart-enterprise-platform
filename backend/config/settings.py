@@ -152,7 +152,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", default="")
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
