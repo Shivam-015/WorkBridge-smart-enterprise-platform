@@ -17,7 +17,6 @@ const FEATURES = [
 
 export default function RegisterPage() {
   const [form, setForm] = useState(defaultPayload);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,10 +24,8 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    setResult(null);
     try {
       const res = await postData("/register/", form);
-      setResult(res);
       setForm(defaultPayload);
     } catch (err) {
       setError(JSON.stringify(err?.response?.data || err.message));
@@ -169,9 +166,6 @@ export default function RegisterPage() {
 
           {error && (
             <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{error}</p>
-          )}
-          {result && (
-            <pre className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800">{JSON.stringify(result, null, 2)}</pre>
           )}
         </form>
       </div>
