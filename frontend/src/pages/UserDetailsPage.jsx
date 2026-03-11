@@ -73,9 +73,9 @@ export default function UserDetailsPage() {
       setLoading(!routeUser);
       setErrorText("");
 
-      const userEndpoints = roleName.includes("manager") ? ["/team/"] : ["/users/", "/team/"];
-      const taskEndpoints = roleName.includes("manager") ? ["/team-tasks/"] : ["/all-tasks/", "/team-tasks/"];
-
+      const userEndpoints = ["/users/", "/team/"];
+      const taskEndpoints = ["/all-tasks/", "/team-tasks/"];
+      
       const [rolesRes, taskRows] = await Promise.all([
         fetchOptional("/roles/", []),
         (async () => {
@@ -99,23 +99,26 @@ export default function UserDetailsPage() {
       }
 
       for (const endpoint of userEndpoints) {
-        try {
-          const rows = await getData(endpoint);
-          const matched = toArray(rows).find((row) => String(row?.id || "") === targetId);
-          if (!matched) continue;
-          if (!active) return;
-          setUserRow(matched);
-          setForm(makeUserForm(matched, toArray(rolesRes)));
-          setLoading(false);
-          return;
-        } catch {
-          // try next endpoint
-        }
-      }
+  try {
+    const rows = await getData(endpoint);
+    const matched = toArray(rows).find((row) => String(row?.id || "") === targetId);
+    if (!matched) continue;
+    if (!active) return;
+    setUserRow(matched);
+    setForm(makeUserForm(matched, toArray(rolesRes)));
+    setLoading(false);
+    return;
+  } catch {
+    // try next endpoint
+  }
+}
 
-      if (!active) return;
-      setErrorText("User details not found or access denied.");
-      setLoading(false);
+if (!active) return;
+// Agar routeUser already available hai toh error mat dikhao
+if (!routeUser) {
+  setErrorText("User details not found or access denied.");
+}
+setLoading(false);
     };
 
     loadPage();
