@@ -1149,7 +1149,7 @@ export default function ManagerDashboardPage() {
 
       setCreateUserForm({ company_id: String(companyId), first_name: "", email: "", role_id: "" });
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ User invited successfully! Invite link generated.");
   };
 
   const submitCreateRole = async (e) => {
@@ -1202,7 +1202,7 @@ export default function ManagerDashboardPage() {
         level: String(level)
       }));
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Role created successfully!");
   };
 
   const updateRoleFromList = (roleRow) => {
@@ -1273,7 +1273,7 @@ export default function ManagerDashboardPage() {
     await runAction(`update-role-${roleId}`, async () => {
       await patchData(`/roles/${roleId}/`, payload);
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Role updated successfully!");
   };
 
   const deleteRoleFromList = async (roleRow) => {
@@ -1290,7 +1290,7 @@ export default function ManagerDashboardPage() {
     await runAction(`delete-role-${roleId}`, async () => {
       await deleteData(`/roles/${roleId}/`);
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Role deleted.");
   };
 
   const updateUserFromList = (userRow) => {
@@ -1365,7 +1365,7 @@ export default function ManagerDashboardPage() {
     await runAction(`update-user-${userId}`, async () => {
       await patchData(`/update-user/${userId}/`, payload);
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ User updated successfully!");
   };
 
   const deleteUserFromList = async (userRow) => {
@@ -1384,7 +1384,7 @@ export default function ManagerDashboardPage() {
     await runAction(`delete-user-${userId}`, async () => {
       await deleteData(`/delete-user/${userId}/`);
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ User deleted.");
   };
 
   const submitCreateProject = async (e) => {
@@ -1420,7 +1420,7 @@ export default function ManagerDashboardPage() {
         is_active: true
       });
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Project created successfully!");
   };
 
   const submitAssignClient = async (e) => {
@@ -1430,7 +1430,7 @@ export default function ManagerDashboardPage() {
         client: Number(assignClientForm.client)
       });
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Client assigned to project!");
   };
 
   const submitDeactivateProject = async (e) => {
@@ -1438,7 +1438,7 @@ export default function ManagerDashboardPage() {
     await runAction("deactivate-project", async () => {
       await patchData(`/projects/${deactivateProjectForm.project_id}/deactivate/`, {});
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Project deactivated.");
   };
 
   const submitUpdateProject = async (e) => {
@@ -1467,7 +1467,7 @@ export default function ManagerDashboardPage() {
         })
       );
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Project updated successfully!");
   };
 
   const submitDeleteProject = async (e) => {
@@ -1476,7 +1476,7 @@ export default function ManagerDashboardPage() {
       await deleteData(`/projects/${deleteProjectForm.project_id}/`);
       setDeleteProjectForm({ project_id: "" });
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Project deleted.");
   };
 
   const assignClientFromProjectRow = async (projectRow) => {
@@ -1505,7 +1505,7 @@ export default function ManagerDashboardPage() {
     await runAction(`assign-project-client-${projectId}`, async () => {
       await patchData(`/projects/${projectId}/assign_client/`, { client: parsedClient });
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Client assigned to project!");
   };
 
   const updateProjectFromList = async (projectRow) => {
@@ -1591,7 +1591,7 @@ export default function ManagerDashboardPage() {
     await runAction(`update-project-${projectId}`, async () => {
       await patchData(`/projects/${projectId}/`, payload);
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Project updated successfully!");
   };
 
   const deleteProjectFromList = async (projectRow) => {
@@ -1609,7 +1609,7 @@ export default function ManagerDashboardPage() {
         await deleteData(`/projects/${projectId}/deactivate/`);
       }
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Project deleted.");
   };
 
   const submitCreateTask = async (e) => {
@@ -1670,7 +1670,7 @@ export default function ManagerDashboardPage() {
         image: null
       });
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Task created successfully!");
   };
 
   const submitLoadManagerProjectTasks = async (e) => {
@@ -1705,7 +1705,7 @@ export default function ManagerDashboardPage() {
     await runAction("manager-update-task", async () => {
       await putData(`/tasks/${managerUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(managerUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Task updated successfully!");
   };
 
   const submitOwnerUpdateTask = async (e) => {
@@ -1713,7 +1713,7 @@ export default function ManagerDashboardPage() {
     await runAction("owner-update-task", async () => {
       await putData(`/tasks/${ownerUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(ownerUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Task updated successfully!");
   };
 
   const deleteTaskFromList = async (taskRow) => {
@@ -1740,7 +1740,7 @@ export default function ManagerDashboardPage() {
       } else {
         setManagerProjectTasks((prev) => prev.filter((task) => Number(task?.id) !== numericTaskId));
       }
-    }, "");
+    }, "✅ Task deleted.");
   };
 
   const openTaskDetails = (taskRow) => {
@@ -1773,21 +1773,21 @@ export default function ManagerDashboardPage() {
     await runAction("employee-update-task", async () => {
       await putData(`/tasks/${employeeUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(employeeUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Task updated successfully!");
   };
 
   const submitCheckIn = async () => {
     await runAction("checkin", async () => {
       await postData("/attendance/checkin/", {});
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Checked in successfully!");
   };
 
   const submitCheckOut = async () => {
     await runAction("checkout", async () => {
       await postData("/attendance/checkout/", {});
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Checked out successfully!");
   };
 
   const submitLeaveApply = async (e) => {
@@ -1796,7 +1796,7 @@ export default function ManagerDashboardPage() {
       await postData("/leave/apply/", leaveApplyForm);
       setLeaveApplyForm({ start_date: "", end_date: "", reason: "" });
       await refreshByRole(roleType);
-    }, "");
+    }, "✅ Leave application submitted!");
   };
 
   const updateHrLeaveStatus = async (leaveRow, status) => {
@@ -1815,7 +1815,7 @@ export default function ManagerDashboardPage() {
     await runAction("hr-leave-status", async () => {
       await patchData(`/leave/${leaveStatusForm.leave_id}/status/`, { status: leaveStatusForm.status });
       await loadHrData();
-    }, "");
+    }, `✅ Leave status updated to ${leaveStatusForm.status}!`);
   };
 
   const submitPerformanceReview = async (e) => {
@@ -1826,7 +1826,7 @@ export default function ManagerDashboardPage() {
         feedback: reviewForm.feedback
       });
       setReviewForm({ employee_id: "", rating: "4", feedback: "" });
-    }, "");
+    }, "✅ Performance review submitted!");
   };
 
   const submitCreateDepartment = async (e) => {
@@ -1835,7 +1835,7 @@ export default function ManagerDashboardPage() {
       await postData("/departments/", departmentForm);
       setDepartmentForm({ name: "", description: "" });
       await loadHrData();
-    }, "");
+    }, "✅ Department created successfully!");
   };
 
   const handleCompanyLogoChange = (e) => {
@@ -1882,7 +1882,7 @@ export default function ManagerDashboardPage() {
       }
 
       await loadOwnerData();
-    }, "");
+    }, "✅ Company settings saved!");
   };
 
   const companyColumns = [
