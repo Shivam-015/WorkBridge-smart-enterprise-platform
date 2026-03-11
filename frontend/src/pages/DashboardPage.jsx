@@ -30,6 +30,7 @@ export default function DashboardPage() {
 
   const [responseMap, setResponseMap] = useState({});
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
 
   const [taskForm, setTaskForm] = useState({
@@ -101,6 +102,7 @@ export default function DashboardPage() {
   const submitTask = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     try {
       const payload = {
         ...taskForm,
@@ -109,6 +111,7 @@ export default function DashboardPage() {
       };
       const data = await postData("/tasks/", payload);
       setResponseMap((s) => ({ ...s, taskCreate: data }));
+      setSuccessMsg("✅ Task created successfully!");
     } catch (err) {
       setError(JSON.stringify(err?.response?.data || err.message));
     }
@@ -117,6 +120,7 @@ export default function DashboardPage() {
   const submitProject = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     try {
       const payload = {
         ...projectForm,
@@ -127,6 +131,7 @@ export default function DashboardPage() {
       };
       const data = await postData("/projects/", payload);
       setResponseMap((s) => ({ ...s, projectCreate: data }));
+      setSuccessMsg("✅ Project created successfully!");
     } catch (err) {
       setError(JSON.stringify(err?.response?.data || err.message));
     }
@@ -135,9 +140,11 @@ export default function DashboardPage() {
   const submitRole = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     try {
       const data = await postData("/roles/", roleForm);
       setResponseMap((s) => ({ ...s, roleCreate: data }));
+      setSuccessMsg("✅ Role created successfully!");
     } catch (err) {
       setError(JSON.stringify(err?.response?.data || err.message));
     }
@@ -146,6 +153,7 @@ export default function DashboardPage() {
   const submitInvite = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     try {
       const data = await postData("/create-user/", {
         ...inviteForm,
@@ -153,6 +161,7 @@ export default function DashboardPage() {
         role_id: Number(inviteForm.role_id)
       });
       setResponseMap((s) => ({ ...s, userInvite: data }));
+      setSuccessMsg("✅ User invited successfully!");
     } catch (err) {
       setError(JSON.stringify(err?.response?.data || err.message));
     }
@@ -161,9 +170,11 @@ export default function DashboardPage() {
   const submitLeave = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     try {
       const data = await postData("/leave/apply/", leaveForm);
       setResponseMap((s) => ({ ...s, leaveApply: data }));
+      setSuccessMsg("✅ Leave application submitted!");
     } catch (err) {
       setError(JSON.stringify(err?.response?.data || err.message));
     }
@@ -172,9 +183,11 @@ export default function DashboardPage() {
   const submitDepartment = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     try {
       const data = await postData("/departments/", deptForm);
       setResponseMap((s) => ({ ...s, departmentCreate: data }));
+      setSuccessMsg("✅ Department created successfully!");
     } catch (err) {
       setError(JSON.stringify(err?.response?.data || err.message));
     }
@@ -183,9 +196,11 @@ export default function DashboardPage() {
   const submitLeavePatch = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMsg("");
     try {
       const data = await patchData(`/leave/${leavePatchForm.leave_id}/status/`, { status: leavePatchForm.status });
       setResponseMap((s) => ({ ...s, leaveStatusPatch: data }));
+      setSuccessMsg(`✅ Leave status updated to ${leavePatchForm.status}!`);
     } catch (err) {
       setError(JSON.stringify(err?.response?.data || err.message));
     }
@@ -217,6 +232,7 @@ export default function DashboardPage() {
       </header>
 
       {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {successMsg && <p className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{successMsg}</p>}
 
       <section className="mb-6 overflow-hidden rounded-2xl shadow-sm" style={{ border: "1px solid #dbeafe" }}>
         <div className="flex items-center justify-between px-5 py-3" style={{ background: "linear-gradient(90deg, #0d2760 0%, #1e3a8a 100%)" }}>
