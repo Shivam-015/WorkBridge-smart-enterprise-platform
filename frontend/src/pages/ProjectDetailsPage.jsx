@@ -136,12 +136,23 @@ export default function ProjectDetailsPage() {
     return lookup;
   }, [users]);
 
-  const managerOptions = useMemo(
-    () => mergeRowsById(users).map((row) => ({ id: String(row?.id || ""), label: buildUserLabel(row) })),
-    [users]
-  );
+  const managerOptions = useMemo(() => {
+    const allUsers = mergeRowsById(users);
+    const filtered = allUsers.filter((row) => {
+      const roleText = String(row?.role_name || (row?.role && typeof row.role === "object" ? row.role.name || row.role.slug : row.role) || "").trim().toLowerCase();
+      return roleText.includes("manager") || roleText.includes("owner");
+    });
+    return (filtered.length ? filtered : allUsers).map((row) => ({ id: String(row?.id || ""), label: buildUserLabel(row) }));
+  }, [users]);
 
-  const clientOptions = managerOptions;
+  const clientOptions = useMemo(() => {
+    const allUsers = mergeRowsById(users);
+    const filtered = allUsers.filter((row) => {
+      const roleText = String(row?.role_name || (row?.role && typeof row.role === "object" ? row.role.name || row.role.slug : row.role) || "").trim().toLowerCase();
+      return roleText.includes("client");
+    });
+    return (filtered.length ? filtered : allUsers).map((row) => ({ id: String(row?.id || ""), label: buildUserLabel(row) }));
+  }, [users]);
 
   const managerLabel = useMemo(() => {
     const managerId = String(getEntityId(project?.manager) || "");

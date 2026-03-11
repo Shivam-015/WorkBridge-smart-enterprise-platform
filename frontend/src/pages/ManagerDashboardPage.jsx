@@ -1004,13 +1004,11 @@ export default function ManagerDashboardPage() {
   }, [activeMenu, teamMembers, users]);
 
   const managerUserOptions = useMemo(() => {
-    const filtered = companyUserOptions.filter((option) => option.roleText.includes("manager") || option.roleText.includes("owner"));
-    return filtered.length ? filtered : companyUserOptions;
+    return companyUserOptions.filter((option) => option.roleText.includes("manager") || option.roleText.includes("owner"));
   }, [companyUserOptions]);
 
   const clientUserOptions = useMemo(() => {
-    const filtered = companyUserOptions.filter((option) => option.roleText.includes("client"));
-    return filtered.length ? filtered : companyUserOptions;
+    return companyUserOptions.filter((option) => option.roleText.includes("client"));
   }, [companyUserOptions]);
 
   const updateRoleOptions = useMemo(
@@ -2555,7 +2553,7 @@ export default function ManagerDashboardPage() {
   ];
 
   const readOnlyUserColumns = userColumns.filter((column) => column.key !== "actions");
-
+  
   const managerUserListColumns = readOnlyUserColumns.filter((column) =>
     ["name", "email", "role", "status"].includes(String(column?.key || ""))
   );
@@ -3345,6 +3343,12 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "manager-users" ? (
             <>
+              <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Total Users" value={managerUserMetrics.total_users} />
+                <StatCard label="Active" value={managerUserMetrics.active_users} />
+                <StatCard label="Managers" value={managerUserMetrics.managers} />
+                <StatCard label="Employees" value={managerUserMetrics.employees} />
+              </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <SectionTitle title="New User" />
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
@@ -3371,12 +3375,7 @@ export default function ManagerDashboardPage() {
                   <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
                 </form>
               </section>
-              <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard label="Total Users" value={managerUserMetrics.total_users} />
-                <StatCard label="Active" value={managerUserMetrics.active_users} />
-                <StatCard label="Managers" value={managerUserMetrics.managers} />
-                <StatCard label="Employees" value={managerUserMetrics.employees} />
-              </section>
+              
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <SectionTitle title="User List" />
                 <DataTable columns={managerUserListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
