@@ -43,7 +43,6 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
 
 # CREATE USER & SEND INVITE
-# CREATE USER & SEND INVITE
 class CreateUserView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -56,27 +55,23 @@ class CreateUserView(APIView):
         if serializer.is_valid():
             company_user = serializer.save()
 
+            # 🔹 Determine recipient email
             recipient_email = company_user.user.email if company_user.user else company_user.email
             if not recipient_email:
                 return Response({"error": "User has no email"}, status=400)
 
+            # invite link
             base_url = settings.FRONTEND_BASE_URL.rstrip("/")
             invite_link = f"{base_url}/set-password/{company_user.invite_token}"
 
-            try:
-                send_mail(
-                    subject="You're invited to join Our Platform",
-                    message=f"Hello,\n\nYou have been invited to join the company.\nPlease set your password using this link:\n{invite_link}\n\nThank you!",
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[recipient_email],
-                    fail_silently=False
-                )
-            except Exception as e:
-                return Response({
-                    "email_error": str(e),
-                    "recipient": recipient_email,
-                    "invite_link": invite_link
-                }, status=500)
+            # 🔹 Send email
+            send_mail(
+                subject="You're invited to join Our Platform",
+                message=f"Hello,\n\nYou have been invited to join the company.\nPlease set your password using this link:\n{invite_link}\n\nThank you!",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[recipient_email],
+                fail_silently=False
+            )
 
             return Response({
                 "success": True,
@@ -85,6 +80,8 @@ class CreateUserView(APIView):
             }, status=201)
 
         return Response(serializer.errors, status=400)
+
+
 # update user
 class UpdateUserView(APIView):
     permission_classes = [IsAuthenticated]
