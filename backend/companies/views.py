@@ -70,7 +70,7 @@ class CreateUserView(APIView):
                 message=f"Hello,\n\nYou have been invited to join the company.\nPlease set your password using this link:\n{invite_link}\n\nThank you!",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[recipient_email],
-                fail_silently=False
+                fail_silently=True
             )
 
             return Response({
