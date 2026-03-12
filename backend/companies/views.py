@@ -9,11 +9,9 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.exceptions import PermissionDenied
 from companies.utils import get_company_user , get_permission_dict
 from dashboard.serializers import UserSerializer
-
+from django.core.mail import send_mail
 from django.conf import settings
 
-from threading import Thread
-from .serializers import CreateUserSerializer
 #REGISTRATION view
 class RegistrationView(APIView):
 
@@ -45,8 +43,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
 
 # CREATE USER & SEND INVITE
-
-
+# CREATE USER & SEND INVITE
 class CreateUserView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -59,17 +56,14 @@ class CreateUserView(APIView):
         if serializer.is_valid():
             company_user = serializer.save()
 
-            # 🔹 Determine recipient email
             recipient_email = company_user.user.email if company_user.user else company_user.email
             if not recipient_email:
                 return Response({"error": "User has no email"}, status=400)
 
-            # 🔹 Invite link
             base_url = settings.FRONTEND_BASE_URL.rstrip("/")
             invite_link = f"{base_url}/set-password/{company_user.invite_token}"
 
-            # 🔹 Function to send email in background
-            def send_invite_email():
+            try:
                 send_mail(
                     subject="You're invited to join Our Platform",
                     message=f"Hello,\n\nYou have been invited to join the company.\nPlease set your password using this link:\n{invite_link}\n\nThank you!",
@@ -77,9 +71,12 @@ class CreateUserView(APIView):
                     recipient_list=[recipient_email],
                     fail_silently=False
                 )
-
-            # 🔹 Start email in a separate thread
-            Thread(target=send_invite_email).start()
+            except Exception as e:
+                return Response({
+                    "email_error": str(e),
+                    "recipient": recipient_email,
+                    "invite_link": invite_link
+                }, status=500)
 
             return Response({
                 "success": True,
