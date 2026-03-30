@@ -91,7 +91,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 import dj_database_url
 
 DATABASES = {
-    'default': dj_database_url.config(default=os.getenv("DATABASE_URL"))
+    'default': dj_database_url.config(
+        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3')
+    )
 }
 
 
