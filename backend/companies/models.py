@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
 import uuid
+from cloudinary_storage.storage import MediaCloudinaryStorage
 
 
 class Company(models.Model):
@@ -10,7 +11,12 @@ class Company(models.Model):
     phone = models.CharField(max_length=15)
     size = models.CharField(max_length=50)
     address = models.TextField(blank=True, null=True)
-    logo = models.ImageField(upload_to='company_logos/', blank=True, null=True)
+    logo = models.ImageField(
+        upload_to='company_logos/',
+        storage=MediaCloudinaryStorage(),
+        blank=True,
+        null=True
+    )
     owner = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
