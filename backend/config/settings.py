@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+import cloudinary
 
 load_dotenv()
 
@@ -48,7 +49,9 @@ INSTALLED_APPS = [
     'tasks',
     'projects',
     'companies',
-    'hr'
+    'hr',
+    'cloudinary',
+    'cloudinary_storage'
 ]
 
 MIDDLEWARE = [
@@ -140,6 +143,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 from datetime import timedelta
 
@@ -168,3 +172,10 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+cloudinary.config(
+    CLOUD_NAME = os.getenv("CLOUD_NAME"),
+    API_KEY = os.getenv("API_KEY"),
+    API_SECRET = os.getenv("API_SECRET")
+)
