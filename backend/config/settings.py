@@ -16,6 +16,14 @@ import cloudinary
 
 load_dotenv()
 
+
+def env_first(*names):
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    return ""
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -143,12 +151,23 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+CLOUDINARY_CLOUD_NAME = env_first("CLOUDINARY_CLOUD_NAME", "CLOUD_NAME")
+CLOUDINARY_API_KEY = env_first("CLOUDINARY_API_KEY", "API_KEY")
+CLOUDINARY_API_SECRET = env_first("CLOUDINARY_API_SECRET", "API_SECRET")
+
+cloudinary.config(
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
+    secure=True,
+)
+
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv("CLOUD_NAME"),
-    'API_KEY': os.getenv("API_KEY"),
-    'API_SECRET': os.getenv("API_SECRET"),
+    'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
+    'API_KEY': CLOUDINARY_API_KEY,
+    'API_SECRET': CLOUDINARY_API_SECRET,
 }
 from datetime import timedelta
 
