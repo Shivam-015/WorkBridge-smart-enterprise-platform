@@ -184,7 +184,10 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = [
     "https://workbridge-smart-enterprise-platform-1.onrender.com",
+    "http://localhost:5173",
+    "http://localhost:5174",
 ]
+CORS_ALLOW_ALL_ORIGINS = True
 
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", default="")
 
