@@ -5,6 +5,7 @@ import StatusPill from "../components/StatusPill";
 import { deleteData, getData, patchData, postData, putData } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../components/Toast/ToastContext";
+import Modal from "../components/Modal";
 import logo from "./logo.png";
 
 const MENUS = {
@@ -158,10 +159,63 @@ function formatPermissionLabel(field) {
 
 function extractError(err) {
   if (err?.response?.data) {
-    if (typeof err.response.data === "string") return err.response.data;
-    return JSON.stringify(err.response.data);
+    const data = err.response.data;
+    if (typeof data === "string") return data;
+
+    // Check for nested messages (common in some token/auth errors)
+    if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+      const firstMsg = data.messages[0];
+      if (firstMsg?.message) return firstMsg.message;
+    }
+
+    if (data?.detail && typeof data.detail === "string") return data.detail;
+    
+    // If it's an object, try to find the first error message
+    if (typeof data === "object") {
+      const firstKey = Object.keys(data)[0];
+      const firstVal = data[firstKey];
+      if (Array.isArray(firstVal)) return firstVal[0];
+      if (typeof firstVal === "string") return firstVal;
+    }
+    
+    return JSON.stringify(data);
   }
   return err?.message || "Request failed";
+}
+
+function formatDateIST(value) {
+  if (!value) return "-";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    }).format(d);
+  } catch(e) {
+    return value;
+  }
+}
+
+function formatDateTimeIST(value) {
+  if (!value) return "-";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).format(d);
+  } catch(e) {
+    return value;
+  }
 }
 
 function makeInviteLink(inviteToken) {
@@ -377,12 +431,136 @@ function StatCard({ label, value, accent }) {
   );
 }
 
-function SectionTitle({ title }) {
+function SectionTitle({ title, action }) {
   return (
-    <header className="mb-4 flex items-center gap-2.5">
-      <span className="inline-block h-4 w-1 rounded-full" style={{ background: "linear-gradient(180deg, #1d4ed8, #60a5fa)" }} />
-      <h2 className="text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.01em" }}>{title}</h2>
+    <header className="mb-4 flex items-center justify-between gap-2.5">
+      <div className="flex items-center gap-2.5">
+        <span className="inline-block h-4 w-1 rounded-full" style={{ background: "linear-gradient(180deg, #1d4ed8, #60a5fa)" }} />
+        <h2 className="text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.01em" }}>{title}</h2>
+      </div>
+      {action}
     </header>
+  );
+}
+
+function AttendanceCalendar({ attendanceRecords, leaveRecords }) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const startDayOfWeek = startOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
+  const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+
+  const prevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+  const nextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  // Process data for easy lookup
+  const attendanceMap = useMemo(() => {
+    const map = {};
+    (attendanceRecords || []).forEach(record => {
+      if (record?.date) {
+        map[record.date] = record.status;
+      }
+    });
+    return map;
+  }, [attendanceRecords]);
+
+  const leaveMap = useMemo(() => {
+    const map = {};
+    (leaveRecords || []).forEach(leave => {
+      if (leave?.status === "Approved" && leave.start_date && leave.end_date) {
+        let current = new Date(leave.start_date);
+        const end = new Date(leave.end_date);
+        while (current <= end) {
+          const dateString = current.toISOString().split("T")[0];
+          map[dateString] = "On Leave";
+          current.setDate(current.getDate() + 1);
+        }
+      }
+    });
+    return map;
+  }, [leaveRecords]);
+
+  const days = [];
+  for (let i = 0; i < startDayOfWeek; i++) {
+    days.push(null);
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push(i);
+  }
+
+  // padding end
+  while (days.length % 7 !== 0) {
+    days.push(null);
+  }
+
+  const renderDay = (day, i) => {
+    if (!day) return <div key={`empty-${i}`} className="p-2 border border-slate-100 bg-slate-50 opacity-50" />;
+    
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    let status = attendanceMap[dateStr];
+    if (!status && leaveMap[dateStr]) {
+      status = leaveMap[dateStr];
+    }
+
+    let bgColor = "bg-white";
+    let textColor = "text-slate-700";
+    let badge = null;
+
+    if (status === "Present") {
+      bgColor = "bg-green-50";
+      badge = <span className="w-2 h-2 rounded-full bg-green-500 inline-block mt-1"></span>;
+    } else if (status === "Absent") {
+      bgColor = "bg-red-50";
+      badge = <span className="w-2 h-2 rounded-full bg-red-500 inline-block mt-1"></span>;
+    } else if (status === "Half Day") {
+      bgColor = "bg-orange-50";
+      badge = <span className="w-2 h-2 rounded-full bg-orange-500 inline-block mt-1"></span>;
+    } else if (status === "On Leave" || status === "Approved") {
+      bgColor = "bg-blue-50";
+      badge = <span className="w-2 h-2 rounded-full bg-blue-500 inline-block mt-1"></span>;
+    }
+
+    const isToday = new Date().toISOString().split("T")[0] === dateStr;
+
+    return (
+      <div key={`day-${day}`} className={`p-2 min-h-[80px] border border-slate-200 flex flex-col items-center justify-center transition hover:bg-slate-50 ${bgColor}`}>
+        <span className={`font-semibold ${isToday ? 'text-blue-700 underline decoration-2 underline-offset-4' : textColor}`}>
+          {day}
+        </span>
+        {badge}
+        <span className="text-[10px] uppercase font-bold tracking-wider mt-1 opacity-70">
+          {status === "On Leave" ? "Leave" : status || ""}
+        </span>
+      </div>
+    );
+  };
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  return (
+    <div className="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm mb-6">
+      <div className="flex items-center justify-between bg-slate-50 p-4 border-b border-blue-100">
+        <button type="button" onClick={prevMonth} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition font-medium shadow-sm">&larr; Prev</button>
+        <h3 className="font-bold text-blue-900 text-lg tracking-wide">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h3>
+        <button type="button" onClick={nextMonth} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition font-medium shadow-sm">Next &rarr;</button>
+      </div>
+      <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-100">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          <div key={d} className="p-2 text-center text-xs font-bold text-slate-500 uppercase">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 bg-white">
+        {days.map((day, i) => renderDay(day, i))}
+      </div>
+    </div>
   );
 }
 
@@ -397,6 +575,14 @@ export default function ManagerDashboardPage() {
   const [busyKey, setBusyKey] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showAddRoleModal, setShowAddRoleModal] = useState(false);
+  const [showEditRoleModal, setShowEditRoleModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [hrCalendarUserId, setHrCalendarUserId] = useState("");
+
 
   const [ownerOverview, setOwnerOverview] = useState(EMPTY_OWNER_OVERVIEW);
   const [managerOverview, setManagerOverview] = useState(EMPTY_MANAGER_OVERVIEW);
@@ -1014,7 +1200,7 @@ export default function ManagerDashboardPage() {
   }, [activeMenu, teamMembers, users]);
 
   const managerUserOptions = useMemo(() => {
-    return companyUserOptions.filter((option) => option.roleText.includes("manager") || option.roleText.includes("owner"));
+    return companyUserOptions.filter((option) => option.roleText.includes("manager"));
   }, [companyUserOptions]);
 
   const clientUserOptions = useMemo(() => {
@@ -1156,7 +1342,8 @@ export default function ManagerDashboardPage() {
 
       setCreateUserForm({ company_id: String(companyId), first_name: "", email: "", role_id: "" });
       await refreshByRole(roleType);
-    }, "✅ User invited successfully! Invite link generated.");
+      setShowAddUserModal(false);
+    }, " User invited successfully! Invite link generated.");
   };
 
   const submitCreateRole = async (e) => {
@@ -1209,6 +1396,7 @@ export default function ManagerDashboardPage() {
         level: String(level)
       }));
       await refreshByRole(roleType);
+      setShowAddRoleModal(false);
     }, "Role created successfully!");
   };
 
@@ -1229,7 +1417,7 @@ export default function ManagerDashboardPage() {
     }
 
     setUpdateRoleForm(nextState);
-
+    setShowEditRoleModal(true);
   };
 
   const handleUpdateRoleSelection = (roleId) => {
@@ -1280,7 +1468,8 @@ export default function ManagerDashboardPage() {
     await runAction(`update-role-${roleId}`, async () => {
       await patchData(`/roles/${roleId}/`, payload);
       await refreshByRole(roleType);
-    }, "✅ Role updated successfully!");
+      setShowEditRoleModal(false);
+    }, "Role updated successfully!");
   };
 
   const deleteRoleFromList = async (roleRow) => {
@@ -1297,7 +1486,7 @@ export default function ManagerDashboardPage() {
     await runAction(`delete-role-${roleId}`, async () => {
       await deleteData(`/roles/${roleId}/`);
       await refreshByRole(roleType);
-    }, "✅ Role deleted.");
+    }, " Role deleted.");
   };
 
   const updateUserFromList = (userRow) => {
@@ -1328,7 +1517,7 @@ export default function ManagerDashboardPage() {
       status: String(userRow?.status || "ACTIVE").trim()
     });
 
-
+    setShowEditUserModal(true);
   };
 
   const handleUpdateUserSelection = (userId) => {
@@ -1372,7 +1561,8 @@ export default function ManagerDashboardPage() {
     await runAction(`update-user-${userId}`, async () => {
       await patchData(`/update-user/${userId}/`, payload);
       await refreshByRole(roleType);
-    }, "✅ User updated successfully!");
+      setShowEditUserModal(false);
+    }, " User updated successfully!");
   };
 
   const deleteUserFromList = async (userRow) => {
@@ -1391,7 +1581,7 @@ export default function ManagerDashboardPage() {
     await runAction(`delete-user-${userId}`, async () => {
       await deleteData(`/delete-user/${userId}/`);
       await refreshByRole(roleType);
-    }, "✅ User deleted.");
+    }, " User deleted.");
   };
 
   const submitCreateProject = async (e) => {
@@ -1427,7 +1617,8 @@ export default function ManagerDashboardPage() {
         is_active: true
       });
       await refreshByRole(roleType);
-    }, "✅ Project created successfully!");
+      setShowAddProjectModal(false);
+    }, " Project created successfully!");
   };
 
   const submitAssignClient = async (e) => {
@@ -1437,7 +1628,7 @@ export default function ManagerDashboardPage() {
         client: Number(assignClientForm.client)
       });
       await refreshByRole(roleType);
-    }, "✅ Client assigned to project!");
+    }, " Client assigned to project!");
   };
 
   const submitDeactivateProject = async (e) => {
@@ -1445,7 +1636,7 @@ export default function ManagerDashboardPage() {
     await runAction("deactivate-project", async () => {
       await patchData(`/projects/${deactivateProjectForm.project_id}/deactivate/`, {});
       await refreshByRole(roleType);
-    }, "✅ Project deactivated.");
+    }, " Project deactivated.");
   };
 
   const submitUpdateProject = async (e) => {
@@ -1474,7 +1665,7 @@ export default function ManagerDashboardPage() {
         })
       );
       await refreshByRole(roleType);
-    }, "✅ Project updated successfully!");
+    }, " Project updated successfully!");
   };
 
   const submitDeleteProject = async (e) => {
@@ -1483,7 +1674,7 @@ export default function ManagerDashboardPage() {
       await deleteData(`/projects/${deleteProjectForm.project_id}/`);
       setDeleteProjectForm({ project_id: "" });
       await refreshByRole(roleType);
-    }, "✅ Project deleted.");
+    }, " Project deleted.");
   };
 
   const assignClientFromProjectRow = async (projectRow) => {
@@ -1512,7 +1703,7 @@ export default function ManagerDashboardPage() {
     await runAction(`assign-project-client-${projectId}`, async () => {
       await patchData(`/projects/${projectId}/assign_client/`, { client: parsedClient });
       await refreshByRole(roleType);
-    }, "✅ Client assigned to project!");
+    }, " Client assigned to project!");
   };
 
   const updateProjectFromList = async (projectRow) => {
@@ -1598,7 +1789,7 @@ export default function ManagerDashboardPage() {
     await runAction(`update-project-${projectId}`, async () => {
       await patchData(`/projects/${projectId}/`, payload);
       await refreshByRole(roleType);
-    }, "✅ Project updated successfully!");
+    }, " Project updated successfully!");
   };
 
   const deleteProjectFromList = async (projectRow) => {
@@ -1616,7 +1807,7 @@ export default function ManagerDashboardPage() {
         await deleteData(`/projects/${projectId}/deactivate/`);
       }
       await refreshByRole(roleType);
-    }, "✅ Project deleted.");
+    }, " Project deleted.");
   };
 
   const submitCreateTask = async (e) => {
@@ -1677,7 +1868,8 @@ export default function ManagerDashboardPage() {
         image: null
       });
       await refreshByRole(roleType);
-    }, "✅ Task created successfully!");
+      setShowCreateTaskModal(false);
+    }, " Task created successfully!");
   };
 
   const submitLoadManagerProjectTasks = async (e) => {
@@ -1712,7 +1904,7 @@ export default function ManagerDashboardPage() {
     await runAction("manager-update-task", async () => {
       await putData(`/tasks/${managerUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(managerUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "✅ Task updated successfully!");
+    }, " Task updated successfully!");
   };
 
   const submitOwnerUpdateTask = async (e) => {
@@ -1720,7 +1912,7 @@ export default function ManagerDashboardPage() {
     await runAction("owner-update-task", async () => {
       await putData(`/tasks/${ownerUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(ownerUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "✅ Task updated successfully!");
+    }, " Task updated successfully!");
   };
 
   const deleteTaskFromList = async (taskRow) => {
@@ -1747,7 +1939,7 @@ export default function ManagerDashboardPage() {
       } else {
         setManagerProjectTasks((prev) => prev.filter((task) => Number(task?.id) !== numericTaskId));
       }
-    }, "✅ Task deleted.");
+    }, " Task deleted.");
   };
 
   const openTaskDetails = (taskRow) => {
@@ -1780,21 +1972,21 @@ export default function ManagerDashboardPage() {
     await runAction("employee-update-task", async () => {
       await putData(`/tasks/${employeeUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(employeeUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "✅ Task updated successfully!");
+    }, " Task updated successfully!");
   };
 
   const submitCheckIn = async () => {
     await runAction("checkin", async () => {
       await postData("/attendance/checkin/", {});
       await refreshByRole(roleType);
-    }, "✅ Checked in successfully!");
+    }, " Checked in successfully!");
   };
 
   const submitCheckOut = async () => {
     await runAction("checkout", async () => {
       await postData("/attendance/checkout/", {});
       await refreshByRole(roleType);
-    }, "✅ Checked out successfully!");
+    }, " Checked out successfully!");
   };
 
   const submitLeaveApply = async (e) => {
@@ -1803,7 +1995,7 @@ export default function ManagerDashboardPage() {
       await postData("/leave/apply/", leaveApplyForm);
       setLeaveApplyForm({ start_date: "", end_date: "", reason: "" });
       await refreshByRole(roleType);
-    }, "✅ Leave application submitted!");
+    }, " Leave application submitted!");
   };
 
   const updateHrLeaveStatus = async (leaveRow, status) => {
@@ -1822,7 +2014,7 @@ export default function ManagerDashboardPage() {
     await runAction("hr-leave-status", async () => {
       await patchData(`/leave/${leaveStatusForm.leave_id}/status/`, { status: leaveStatusForm.status });
       await loadHrData();
-    }, `✅ Leave status updated to ${leaveStatusForm.status}!`);
+    }, ` Leave status updated to ${leaveStatusForm.status}!`);
   };
 
   const submitPerformanceReview = async (e) => {
@@ -1833,7 +2025,7 @@ export default function ManagerDashboardPage() {
         feedback: reviewForm.feedback
       });
       setReviewForm({ employee_id: "", rating: "4", feedback: "" });
-    }, "✅ Performance review submitted!");
+    }, " Performance review submitted!");
   };
 
   const submitCreateDepartment = async (e) => {
@@ -1842,7 +2034,7 @@ export default function ManagerDashboardPage() {
       await postData("/departments/", departmentForm);
       setDepartmentForm({ name: "", description: "" });
       await loadHrData();
-    }, "✅ Department created successfully!");
+    }, " Department created successfully!");
   };
 
   const handleCompanyLogoChange = (e) => {
@@ -1889,7 +2081,7 @@ export default function ManagerDashboardPage() {
       }
 
       await loadOwnerData();
-    }, "✅ Company settings saved!");
+    }, " Company settings saved!");
   };
 
   const companyColumns = [
@@ -2531,8 +2723,8 @@ export default function ManagerDashboardPage() {
     { key: "name", label: "Name" },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> },
     { key: "priority", label: "Priority", render: (value) => <StatusPill value={value} /> },
-    { key: "start_date", label: "Start" },
-    { key: "end_date", label: "End" },
+    { key: "start_date", label: "Start", render: (value) => formatDateIST(value) },
+    { key: "end_date", label: "End", render: (value) => formatDateIST(value) },
     { key: "progress", label: "Progress" }
   ];
 
@@ -2562,8 +2754,8 @@ export default function ManagerDashboardPage() {
 
   const readOnlyUserColumns = userColumns.filter((column) => column.key !== "actions");
   
-  const managerUserListColumns = readOnlyUserColumns.filter((column) =>
-    ["name", "email", "role", "status"].includes(String(column?.key || ""))
+  const managerUserListColumns = userColumns.filter((column) =>
+    ["name", "email", "role", "status", "actions"].includes(String(column?.key || ""))
   );
 
   const userListColumns = userColumns.map((column) => {
@@ -2674,17 +2866,17 @@ export default function ManagerDashboardPage() {
   const hrAttendanceColumns = [
     { key: "employee_name", label: "Employee", render: (_, row) => resolveHrUserName(row) },
     { key: "role", label: "Role", render: (_, row) => resolveHrUserRole(row) },
-    { key: "date", label: "Date" },
-    { key: "check_in", label: "Check-in" },
-    { key: "check_out", label: "Check-out" },
+    { key: "date", label: "Date", render: (value) => formatDateIST(value) },
+    { key: "check_in", label: "Check-in", render: (value) => formatDateTimeIST(value) },
+    { key: "check_out", label: "Check-out", render: (value) => formatDateTimeIST(value) },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> }
   ];
 
   const hrLeaveApprovalColumns = [
     { key: "employee_name", label: "Name", render: (_, row) => resolveHrUserName(row) },
     { key: "role", label: "Role", render: (_, row) => resolveHrUserRole(row) },
-    { key: "start_date", label: "From Date" },
-    { key: "end_date", label: "End Date" },
+    { key: "start_date", label: "From Date", render: (value) => formatDateIST(value) },
+    { key: "end_date", label: "End Date", render: (value) => formatDateIST(value) },
     { key: "reason", label: "Reason" },
     {
       key: "actions",
@@ -2966,7 +3158,7 @@ export default function ManagerDashboardPage() {
     },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> },
     { key: "priority", label: "Priority", render: (value) => <StatusPill value={value} /> },
-    { key: "due_date", label: "Due Date" },
+    { key: "due_date", label: "Due Date", render: (value) => formatDateIST(value) },
     { key: "progress", label: "Progress" },
     {
       key: "reference_link",
@@ -2999,8 +3191,8 @@ export default function ManagerDashboardPage() {
     { key: "title", label: "Name" },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> },
     { key: "progress", label: "Progress" },
-    { key: "created_at", label: "Created Date" },
-    { key: "due_date", label: "Due Date" },
+    { key: "created_at", label: "Created Date", render: (value) => formatDateTimeIST(value) },
+    { key: "due_date", label: "Due Date", render: (value) => formatDateIST(value) },
     {
       key: "created_by",
       label: "Created By",
@@ -3039,16 +3231,16 @@ export default function ManagerDashboardPage() {
   ];
 
   const leaveColumns = [
-    { key: "start_date", label: "Start" },
-    { key: "end_date", label: "End" },
+    { key: "start_date", label: "Start", render: (value) => formatDateIST(value) },
+    { key: "end_date", label: "End", render: (value) => formatDateIST(value) },
     { key: "reason", label: "Reason" },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> }
   ];
 
   const attendanceColumns = [
-    { key: "date", label: "Date" },
-    { key: "check_in", label: "Check-in" },
-    { key: "check_out", label: "Check-out" },
+    { key: "date", label: "Date", render: (value) => formatDateIST(value) },
+    { key: "check_in", label: "Check-in", render: (value) => formatDateTimeIST(value) },
+    { key: "check_out", label: "Check-out", render: (value) => formatDateTimeIST(value) },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> }
   ];
   const renderManagerProjectTeamSections = () => (
@@ -3081,6 +3273,9 @@ export default function ManagerDashboardPage() {
           <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
         </div>
       </section>
+
+      <AttendanceCalendar attendanceRecords={employeeAttendanceRows} leaveRecords={myLeaves} />
+
       <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
         <SectionTitle title="Attendance History" />
         <DataTable columns={attendanceColumns} rows={employeeAttendanceRows} emptyText="No attendance records" />
@@ -3320,7 +3515,19 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Overdue" value={ownerOverview.overdue_tasks} accent="#dc2626" />
               </div>
               <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe", borderTop: "3px solid #2563eb" }}>
-                <SectionTitle title="All Tasks" />
+                <SectionTitle 
+                  title="All Tasks" 
+                  action={
+                    permissions.can_assign_task && (
+                      <button 
+                        onClick={() => setShowCreateTaskModal(true)}
+                        className="btn-primary !py-2 !px-4 text-xs"
+                      >
+                        New Task
+                      </button>
+                    )
+                  }
+                />
                 <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
@@ -3329,110 +3536,37 @@ export default function ManagerDashboardPage() {
           {activeMenu === "owner-roles" || activeMenu === "manager-roles" || activeMenu === "hr-roles" ? (
             <>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Role" />
-                <form className="space-y-3" onSubmit={submitCreateRole}>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Company</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
-                        <option value="">Select company</option>
-                        {companyOptions.map((companyOption) => (
-                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {ROLE_PERMISSION_FIELDS.map((field) => (
-                      <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
-                        <input type="checkbox" checked={Boolean(createRoleForm[field])} onChange={(e) => setCreateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
-                        <span>{formatPermissionLabel(field)}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <button className="btn-primary" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Edit Role" />
-                <form className="space-y-3" onSubmit={submitUpdateRole}>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Role</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.role_id} onChange={(e) => handleUpdateRoleSelection(e.target.value)} required>
-                        <option value="">Select role</option>
-                        {roles.map((role) => (
-                          <option key={role.id} value={role.id}>{role?.name || role?.slug || `Role ${role.id}`}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Company</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.company} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
-                        <option value="">Select company</option>
-                        {companyOptions.map((companyOption) => (
-                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {ROLE_PERMISSION_FIELDS.map((field) => (
-                      <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
-                        <input type="checkbox" checked={Boolean(updateRoleForm[field])} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
-                        <span>{formatPermissionLabel(field)}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <button className="btn-primary" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Role"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Role List" />
+                <SectionTitle 
+                  title="Role Management" 
+                  action={
+                    <button 
+                      onClick={() => setShowAddRoleModal(true)}
+                      className="btn-primary !py-2 !px-4 text-xs"
+                    >
+                      Add Role
+                    </button>
+                  }
+                />
                 <DataTable columns={roleColumns} rows={roles} emptyText="No roles" />
               </section>
             </>
           ) : null}
 
           {activeMenu === "owner-users" ? (
-            <>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New User" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Company</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
-                      <option value="">Select company</option>
-                      {companyOptions.map((companyOption) => (
-                        <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Role</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
-                      <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
-                      {createUserRoleOptions.map((roleOption) => (
-                        <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" />
-                <DataTable columns={userListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
-              </section>
-            </>
+            <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+              <SectionTitle 
+                title="User List" 
+                action={
+                  <button 
+                    onClick={() => setShowAddUserModal(true)}
+                    className="btn-primary !py-2 !px-4 text-xs"
+                  >
+                    Add User
+                  </button>
+                }
+              />
+              <DataTable columns={userListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
+            </section>
           ) : null}
 
           {activeMenu === "manager-users" ? (
@@ -3444,34 +3578,17 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Employees" value={managerUserMetrics.employees} />
               </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New User" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Company</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
-                      <option value="">Select company</option>
-                      {companyOptions.map((companyOption) => (
-                        <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Role</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
-                      <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
-                      {createUserRoleOptions.map((roleOption) => (
-                        <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
-                </form>
-              </section>
-              
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" />
+                <SectionTitle 
+                  title="User List" 
+                  action={
+                    <button 
+                      onClick={() => setShowAddUserModal(true)}
+                      className="btn-primary !py-2 !px-4 text-xs"
+                    >
+                      Add User
+                    </button>
+                  }
+                />
                 <DataTable columns={managerUserListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
             </>
@@ -3485,51 +3602,24 @@ export default function ManagerDashboardPage() {
                 <StatCard label="On Hold" value={ownerProjectMetrics.on_hold_projects} />
               </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Project" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="All Projects" />
+                <SectionTitle 
+                  title="Project List" 
+                  action={
+                    <button 
+                      onClick={() => setShowAddProjectModal(true)}
+                      className="btn-primary !py-2 !px-4 text-xs"
+                    >
+                      New Project
+                    </button>
+                  }
+                />
                 <DataTable columns={managerProjectColumns} rows={ownerProjectsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
             </>
           ) : null}
           {activeMenu === "owner-tasks" ? (
             <>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Task" />
-                {permissions.can_assign_task ? (
-                  <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
-                    <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Save Task"}</button>
-                  </form>
-                ) : (
-                  <p className="text-sm text-slate-500">You do not have permission to create tasks.</p>
-                )}
-              </section>
+              
               <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <StatCard label="Total Tasks" value={ownerTaskMetrics.total_tasks} />
                 <StatCard label="Completed" value={ownerTaskMetrics.completed_tasks} />
@@ -3537,7 +3627,19 @@ export default function ManagerDashboardPage() {
               </section>
               {renderTaskProgressSection()}
               <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe", borderTop: "3px solid #2563eb" }}>
-                <SectionTitle title="All Tasks" />
+                <SectionTitle 
+                  title="All Tasks" 
+                  action={
+                    permissions.can_assign_task && (
+                      <button 
+                        onClick={() => setShowCreateTaskModal(true)}
+                        className="btn-primary !py-2 !px-4 text-xs"
+                      >
+                        New Task
+                      </button>
+                    )
+                  }
+                />
                 <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
@@ -3640,24 +3742,17 @@ export default function ManagerDashboardPage() {
                 <StatCard label="On Hold" value={managerProjectMetrics.on_hold_projects} />
               </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Project" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Project List" />
+                <SectionTitle 
+                  title="Project List" 
+                  action={
+                    <button 
+                      onClick={() => setShowAddProjectModal(true)}
+                      className="btn-primary !py-2 !px-4 text-xs"
+                    >
+                      New Project
+                    </button>
+                  }
+                />
                 <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
             </>
@@ -3669,23 +3764,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerTaskMetrics.completed_tasks} />
                 <StatCard label="Overdue" value={managerTaskMetrics.overdue_tasks} />
               </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Task" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>Save Task</button>
-                </form>
-              </section>
+              
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <SectionTitle title="Task List" />
                 <DataTable columns={dashboardTaskListColumns} rows={managerVisibleTaskRows} emptyText="No tasks" onRowClick={openTaskDetails} />
@@ -3866,7 +3945,33 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "hr-attendance" ? (
             <>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <SectionTitle title="Employee Calendar" />
+                  <select 
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200 bg-slate-50"
+                    value={hrCalendarUserId}
+                    onChange={(e) => setHrCalendarUserId(e.target.value)}
+                  >
+                    <option value="">Select employee...</option>
+                    {hrEmployeeRows.map((emp) => (
+                      <option key={emp.id} value={emp.id}>{getUserDisplayName(emp)}</option>
+                    ))}
+                  </select>
+                </div>
+                {hrCalendarUserId ? (
+                  <AttendanceCalendar 
+                    attendanceRecords={attendanceRecords.filter(r => String(r?.user?.id || r?.user) === String(hrCalendarUserId))}
+                    leaveRecords={hrLeaves.filter(l => String(l?.user?.id || l?.user) === String(hrCalendarUserId))}
+                  />
+                ) : (
+                  <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    Select an employee from the dropdown above to view their attendance calendar.
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm mb-6">
                 <SectionTitle title="Attendance List" />
                 <DataTable columns={hrAttendanceColumns} rows={attendanceRecords} emptyText="No attendance records" />
               </section>
@@ -4005,7 +4110,462 @@ export default function ManagerDashboardPage() {
           ) : null}
         </section>
       </div>
+      {AddUserModal()}
+      {EditUserModal()}
+      {AddRoleModal()}
+      {EditRoleModal()}
+      {CreateTaskModal()}
+      {AddProjectModal()}
     </main>
   );
+
+  function AddUserModal() {
+    return (
+      <Modal isOpen={showAddUserModal} onClose={() => setShowAddUserModal(false)} title="Add New User">
+        <form className="grid gap-4" onSubmit={submitCreateUser}>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Company</span>
+            <select 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={createUserForm.company_id} 
+              onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} 
+              required
+            >
+              <option value="">Select company</option>
+              {companyOptions.map((companyOption) => (
+                <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">First Name</span>
+            <input 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={createUserForm.first_name} 
+              onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} 
+              required 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Email</span>
+            <input 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              type="email" 
+              value={createUserForm.email} 
+              onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} 
+              required 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Role</span>
+            <select 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={createUserForm.role_id} 
+              onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} 
+              disabled={!createUserRoleOptions.length} 
+              required
+            >
+              <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
+              {createUserRoleOptions.map((roleOption) => (
+                <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowAddUserModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button 
+              type="submit" 
+              className="flex-[2] btn-primary py-3" 
+              disabled={busyKey === "create-user" || !createUserRoleOptions.length}
+            >
+              {busyKey === "create-user" ? "Inviting..." : "Invite User"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  function AddRoleModal() {
+    return (
+      <Modal isOpen={showAddRoleModal} onClose={() => setShowAddRoleModal(false)} title="Add New Role">
+        <form className="grid gap-4" onSubmit={submitCreateRole}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="space-y-1.5 text-sm text-slate-700">
+              <span className="font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Company</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                <option value="">Select company</option>
+                {companyOptions.map((companyOption) => (
+                  <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5 text-sm text-slate-700">
+              <span className="font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Name</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required />
+            </label>
+            <label className="space-y-1.5 text-sm text-slate-700">
+              <span className="font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Slug</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} />
+            </label>
+            <label className="space-y-1.5 text-sm text-slate-700">
+              <span className="font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Level</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required />
+            </label>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+            {ROLE_PERMISSION_FIELDS.map((field) => (
+              <label key={field} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100">
+                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={Boolean(createRoleForm[field])} onChange={(e) => setCreateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
+                <span>{formatPermissionLabel(field)}</span>
+              </label>
+            ))}
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowAddRoleModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  function EditRoleModal() {
+    return (
+      <Modal isOpen={showEditRoleModal} onClose={() => setShowEditRoleModal(false)} title="Edit Role">
+        <form className="grid gap-4" onSubmit={submitUpdateRole}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Company</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={updateRoleForm.company} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                <option value="">Select company</option>
+                {companyOptions.map((companyOption) => (
+                  <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Name</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Slug</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Level</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required />
+            </div>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+            {ROLE_PERMISSION_FIELDS.map((field) => (
+              <label key={field} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100">
+                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={Boolean(updateRoleForm[field])} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
+                <span>{formatPermissionLabel(field)}</span>
+              </label>
+            ))}
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowEditRoleModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Changes"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  function EditUserModal() {
+    return (
+      <Modal isOpen={showEditUserModal} onClose={() => setShowEditUserModal(false)} title="Edit User">
+        <form className="grid gap-4" onSubmit={submitUpdateUser}>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Name</span>
+            <input 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={updateUserForm.name} 
+              onChange={(e) => setUpdateUserForm((s) => ({ ...s, name: e.target.value }))} 
+              required 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Role</span>
+            <select 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={updateUserForm.role} 
+              onChange={(e) => setUpdateUserForm((s) => ({ ...s, role: e.target.value }))} 
+              required
+            >
+              <option value="">Select role</option>
+              {roles.map((role) => (
+                <option key={role.id} value={role.id}>{role.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Status</span>
+            <select 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={updateUserForm.status} 
+              onChange={(e) => setUpdateUserForm((s) => ({ ...s, status: e.target.value }))} 
+              required
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowEditUserModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button 
+              type="submit" 
+              className="flex-[2] btn-primary py-3" 
+              disabled={busyKey === `update-user-${updateUserForm.user_id}`}
+            >
+              {busyKey === `update-user-${updateUserForm.user_id}` ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+
+  function CreateTaskModal() {
+    return (
+      <Modal isOpen={showCreateTaskModal} onClose={() => setShowCreateTaskModal(false)} title="Create New Task">
+        <form className="grid gap-4" onSubmit={submitCreateTask}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Title</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Assign To</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required>
+                <option value="">Select employee</option>
+                {createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Project</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}>
+                <option value="">None (No Project)</option>
+                {createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Due Date</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Status</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}>
+                <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Priority</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}>
+                <option>LOW</option>
+                <option>MEDIUM</option>
+                <option>HIGH</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Progress</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Reference Link</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} />
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Attachment</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Image</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} />
+            </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Description</span>
+              <textarea className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all min-h-[100px]" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required />
+            </div>
+          </div>
+          
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowCreateTaskModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Create Task"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+
+  function CreateTaskModal() {
+    return (
+      <Modal isOpen={showCreateTaskModal} onClose={() => setShowCreateTaskModal(false)} title="Create New Task">
+        <form className="grid gap-4" onSubmit={submitCreateTask}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Title</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Assign To</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required>
+                <option value="">Select employee</option>
+                {createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Project</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}>
+                <option value="">None (No Project)</option>
+                {createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Due Date</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Status</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}>
+                <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Priority</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}>
+                <option>LOW</option>
+                <option>MEDIUM</option>
+                <option>HIGH</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Progress</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Reference Link</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} />
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Attachment</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Image</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} />
+            </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Description</span>
+              <textarea className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all min-h-[100px]" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required />
+            </div>
+          </div>
+          
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowCreateTaskModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Create Task"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  function AddProjectModal() {
+    return (
+      <Modal isOpen={showAddProjectModal} onClose={() => setShowAddProjectModal(false)} title="Create New Project">
+        <form className="grid gap-4" onSubmit={submitCreateProject}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Project Name</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Manager</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}>
+                <option value="">Select manager</option>
+                {managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Client</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}>
+                <option value="">Select client</option>
+                {clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Status</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}>
+                <option value="ACTIVE">Active</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="ON_HOLD">On Hold</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Priority</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}>
+                <option>LOW</option>
+                <option>MEDIUM</option>
+                <option>HIGH</option>
+                <option>CRITICAL</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Start Date</span>
+              <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">End Date</span>
+              <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Budget</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Description</span>
+            <textarea className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all min-h-24" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} />
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+            <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> 
+            <span>Project is Active</span>
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowAddProjectModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Create Project"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
 }
 
