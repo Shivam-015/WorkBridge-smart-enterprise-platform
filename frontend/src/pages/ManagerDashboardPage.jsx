@@ -2765,19 +2765,31 @@ export default function ManagerDashboardPage() {
       ...column,
       render: (_, row) => {
         const rowId = row?.id;
+        const updating = busyKey === `update-user-${rowId}`;
         const deleting = busyKey === `delete-user-${rowId}`;
-        const disabled = !permissions.can_manage_users || !rowId || deleting;
+        const disabled = !permissions.can_manage_users || !rowId || updating || deleting;
 
         return (
-          <button
-            type="button"
-            className="btn !bg-rose-600 !px-2 !py-1 text-xs text-white hover:!bg-rose-700"
-            onClick={(e) => { e.stopPropagation(); deleteUserFromList(row); }}
-            disabled={disabled}
-            title={permissions.can_manage_users ? "Delete user" : "No permission"}
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn-secondary !px-2 !py-1 text-xs"
+              onClick={(e) => { e.stopPropagation(); updateUserFromList(row); }}
+              disabled={disabled}
+              title={permissions.can_manage_users ? "Edit user" : "No permission"}
+            >
+              {updating ? "Saving..." : "Edit"}
+            </button>
+            <button
+              type="button"
+              className="btn !bg-rose-600 !px-2 !py-1 text-xs text-white hover:!bg-rose-700"
+              onClick={(e) => { e.stopPropagation(); deleteUserFromList(row); }}
+              disabled={disabled}
+              title={permissions.can_manage_users ? "Delete user" : "No permission"}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
         );
       }
     };
