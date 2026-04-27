@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { postData } from "../lib/api";
+import { postData, getErrorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../components/Toast/ToastContext";
 import logo from "./logo.png";
@@ -29,7 +29,7 @@ export default function LoginPage() {
       showToast("Welcome back!", "success");
       navigate("/");
     } catch (err) {
-      const msg = err?.response?.data?.detail || JSON.stringify(err?.response?.data) || err.message;
+      const msg = getErrorMessage(err);
       setError(msg);
       showToast(msg, "error");
     } finally {

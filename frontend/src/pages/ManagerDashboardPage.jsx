@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DataTable from "../components/DataTable";
 import StatusPill from "../components/StatusPill";
-import { deleteData, getData, patchData, postData, putData } from "../lib/api";
+import { deleteData, getData, patchData, postData, putData, getErrorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useToast } from "../components/Toast/ToastContext";
 import Modal from "../components/Modal";
@@ -157,31 +157,7 @@ function formatPermissionLabel(field) {
     .replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function extractError(err) {
-  if (err?.response?.data) {
-    const data = err.response.data;
-    if (typeof data === "string") return data;
 
-    // Check for nested messages (common in some token/auth errors)
-    if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
-      const firstMsg = data.messages[0];
-      if (firstMsg?.message) return firstMsg.message;
-    }
-
-    if (data?.detail && typeof data.detail === "string") return data.detail;
-    
-    // If it's an object, try to find the first error message
-    if (typeof data === "object") {
-      const firstKey = Object.keys(data)[0];
-      const firstVal = data[firstKey];
-      if (Array.isArray(firstVal)) return firstVal[0];
-      if (typeof firstVal === "string") return firstVal;
-    }
-    
-    return JSON.stringify(data);
-  }
-  return err?.message || "Request failed";
-}
 
 function formatDateIST(value) {
   if (!value) return "-";
@@ -194,7 +170,7 @@ function formatDateIST(value) {
       month: 'short',
       day: 'numeric'
     }).format(d);
-  } catch(e) {
+  } catch (e) {
     return value;
   }
 }
@@ -202,8 +178,18 @@ function formatDateIST(value) {
 function formatDateTimeIST(value) {
   if (!value) return "-";
   try {
+    // Handle raw time strings from Django TimeField (HH:MM:SS or HH:MM:SS.mmmmmm)
+    if (typeof value === 'string' && /^\d{2}:\d{2}/.test(value) && !value.includes('-')) {
+      const [timePart] = value.split('.'); // Remove microseconds
+      const [h, m, s] = timePart.split(':').map(Number);
+      const d = new Date();
+      d.setHours(h, m, s || 0, 0);
+      return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
     const d = new Date(value);
     if (isNaN(d.getTime())) return value;
+
     return new Intl.DateTimeFormat('en-IN', {
       timeZone: 'Asia/Kolkata',
       year: 'numeric',
@@ -213,7 +199,7 @@ function formatDateTimeIST(value) {
       minute: '2-digit',
       hour12: true
     }).format(d);
-  } catch(e) {
+  } catch (e) {
     return value;
   }
 }
@@ -502,7 +488,7 @@ function AttendanceCalendar({ attendanceRecords, leaveRecords }) {
   }
 
   const renderDay = (day, i) => {
-    if (!day) return <div key={`empty-${i}`} className="p-2 border border-slate-100 bg-slate-50 opacity-50" />;
+    if (!day) return <div key={`empty-${i}`} className="p-1 border border-slate-100 bg-slate-50 opacity-30" />;
     
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     let status = attendanceMap[dateStr];
@@ -515,46 +501,52 @@ function AttendanceCalendar({ attendanceRecords, leaveRecords }) {
     let badge = null;
 
     if (status === "Present") {
-      bgColor = "bg-green-50";
-      badge = <span className="w-2 h-2 rounded-full bg-green-500 inline-block mt-1"></span>;
+      bgColor = "bg-green-50/50";
+      badge = <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>;
     } else if (status === "Absent") {
-      bgColor = "bg-red-50";
-      badge = <span className="w-2 h-2 rounded-full bg-red-500 inline-block mt-1"></span>;
+      bgColor = "bg-red-50/50";
+      badge = <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>;
     } else if (status === "Half Day") {
-      bgColor = "bg-orange-50";
-      badge = <span className="w-2 h-2 rounded-full bg-orange-500 inline-block mt-1"></span>;
+      bgColor = "bg-orange-50/50";
+      badge = <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>;
     } else if (status === "On Leave" || status === "Approved") {
-      bgColor = "bg-blue-50";
-      badge = <span className="w-2 h-2 rounded-full bg-blue-500 inline-block mt-1"></span>;
+      bgColor = "bg-blue-50/50";
+      badge = <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>;
     }
 
     const isToday = new Date().toISOString().split("T")[0] === dateStr;
 
     return (
-      <div key={`day-${day}`} className={`p-2 min-h-[80px] border border-slate-200 flex flex-col items-center justify-center transition hover:bg-slate-50 ${bgColor}`}>
-        <span className={`font-semibold ${isToday ? 'text-blue-700 underline decoration-2 underline-offset-4' : textColor}`}>
+      <div key={`day-${day}`} className={`p-1 min-h-[42px] border border-slate-100 flex flex-col items-center justify-center transition hover:bg-slate-50 ${bgColor} relative group`}>
+        <span className={`text-[11px] font-bold ${isToday ? 'text-blue-700 underline decoration-2 underline-offset-2' : textColor}`}>
           {day}
         </span>
-        {badge}
-        <span className="text-[10px] uppercase font-bold tracking-wider mt-1 opacity-70">
-          {status === "On Leave" ? "Leave" : status || ""}
-        </span>
+        {badge && (
+          <div className="mt-0.5">
+            {badge}
+          </div>
+        )}
+        {status && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10 bg-slate-800 text-white text-[10px] px-2 py-0.5 rounded shadow-lg whitespace-nowrap pointer-events-none">
+            {status}
+          </div>
+        )}
       </div>
     );
   };
 
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   return (
-    <div className="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm mb-6">
-      <div className="flex items-center justify-between bg-slate-50 p-4 border-b border-blue-100">
-        <button type="button" onClick={prevMonth} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition font-medium shadow-sm">&larr; Prev</button>
-        <h3 className="font-bold text-blue-900 text-lg tracking-wide">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h3>
-        <button type="button" onClick={nextMonth} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition font-medium shadow-sm">Next &rarr;</button>
+    <div className="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between bg-slate-50 p-2 border-b border-blue-100">
+        <button type="button" onClick={prevMonth} className="p-1 px-2 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition text-xs">&larr;</button>
+        <h3 className="font-bold text-blue-900 text-xs tracking-tight">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h3>
+        <button type="button" onClick={nextMonth} className="p-1 px-2 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition text-xs">&rarr;</button>
       </div>
-      <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-100">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="p-2 text-center text-xs font-bold text-slate-500 uppercase">{d}</div>
+      <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
+          <div key={d} className="p-1 text-center text-[9px] font-black text-slate-400 uppercase">{d}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 bg-white">
@@ -905,7 +897,7 @@ export default function ManagerDashboardPage() {
         showToast(successMessage, "success");
       }
     } catch (err) {
-      const msg = extractError(err);
+      const msg = getErrorMessage(err);
       showToast(msg, "error");
     } finally {
       setBusyKey("");
@@ -3277,35 +3269,72 @@ export default function ManagerDashboardPage() {
   );
 
   const renderAttendanceAndLeaveSections = () => (
-    <>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Attendance Actions" />
-        <div className="flex flex-wrap gap-2">
-          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
-          <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      {/* Left Column: Actions and History */}
+      <div className="lg:col-span-2 space-y-6">
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Attendance Actions" />
+          <div className="flex flex-wrap gap-2">
+            <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
+            <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Attendance History" />
+          <DataTable columns={attendanceColumns} rows={employeeAttendanceRows} emptyText="No attendance records" />
+        </section>
+
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Leaves Applied Status" />
+          <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leave history" />
+        </section>
+
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Leave Application Form" />
+          <form className="grid gap-3 md:grid-cols-2" onSubmit={submitLeaveApply}>
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
+            <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
+              <span className="font-medium">Reason</span>
+              <textarea className="input min-h-24 md:col-span-2" value={leaveApplyForm.reason} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, reason: e.target.value }))} required />
+            </label>
+            <button className="btn-primary md:col-span-2" disabled={busyKey === "apply-leave"}>
+              {busyKey === "apply-leave" ? "Submitting..." : "Apply Leave"}
+            </button>
+          </form>
+        </section>
+      </div>
+
+      {/* Right Column: Small Calendar */}
+      <div className="lg:col-span-1">
+        <div className="sticky top-6">
+          <AttendanceCalendar attendanceRecords={employeeAttendanceRows} leaveRecords={myLeaves} />
+          
+          <div className="mt-4 rounded-xl border border-blue-50 bg-white p-4 shadow-sm">
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Quick Legend</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Present</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Absent</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-orange-500" />
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Half Day</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-blue-500" />
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Leave</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
-
-      <AttendanceCalendar attendanceRecords={employeeAttendanceRows} leaveRecords={myLeaves} />
-
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Attendance History" />
-        <DataTable columns={attendanceColumns} rows={employeeAttendanceRows} emptyText="No attendance records" />
-      </section>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Leaves Applied Status" />
-        <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leave history" />
-      </section>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Leave Application Form" />
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={submitLeaveApply}>
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
-          <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Reason</span><textarea className="input min-h-24 md:col-span-2" value={leaveApplyForm.reason} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, reason: e.target.value }))} required /></label>
-          <button className="btn-primary md:col-span-2" disabled={busyKey === "apply-leave"}>{busyKey === "apply-leave" ? "Submitting..." : "Apply Leave"}</button>
-        </form>
-      </section>
-    </>
+      </div>
+    </div>
   );
 
   return (

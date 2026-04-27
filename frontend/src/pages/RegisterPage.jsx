@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { postData } from "../lib/api";
+import { postData, getErrorMessage } from "../lib/api";
 import { useToast } from "../components/Toast/ToastContext";
 import logo from "./logo.png";
 
@@ -31,7 +31,7 @@ export default function RegisterPage() {
       setForm(defaultPayload);
       showToast("Company registered successfully! Please login.", "success");
     } catch (err) {
-      const msg = JSON.stringify(err?.response?.data || err.message);
+      const msg = getErrorMessage(err);
       setError(msg);
       showToast(msg, "error");
     } finally {

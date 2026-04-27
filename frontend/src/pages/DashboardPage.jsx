@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import JsonViewer from "../components/JsonViewer";
-import { getData, patchData, postData } from "../lib/api";
+import { getData, patchData, postData, getErrorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import logo from "./logo.png";
 const readEndpoints = [
@@ -93,7 +93,7 @@ export default function DashboardPage() {
       const data = await getData(url);
       setResponseMap((s) => ({ ...s, [url]: data }));
     } catch (err) {
-      setError(`${url}: ${JSON.stringify(err?.response?.data || err.message)}`);
+      setError(`${url}: ${getErrorMessage(err)}`);
     } finally {
       setLoadingKey("");
     }
@@ -113,7 +113,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, taskCreate: data }));
       setSuccessMsg(" Task created successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(getErrorMessage(err));
     }
   };
 
@@ -133,7 +133,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, projectCreate: data }));
       setSuccessMsg(" Project created successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(getErrorMessage(err));
     }
   };
 
@@ -146,7 +146,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, roleCreate: data }));
       setSuccessMsg(" Role created successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(getErrorMessage(err));
     }
   };
 
@@ -163,7 +163,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, userInvite: data }));
       setSuccessMsg(" User invited successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(getErrorMessage(err));
     }
   };
 
@@ -176,7 +176,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, leaveApply: data }));
       setSuccessMsg(" Leave application submitted!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(getErrorMessage(err));
     }
   };
 
@@ -189,7 +189,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, departmentCreate: data }));
       setSuccessMsg(" Department created successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(getErrorMessage(err));
     }
   };
 
@@ -202,7 +202,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, leaveStatusPatch: data }));
       setSuccessMsg(` Leave status updated to ${leavePatchForm.status}!`);
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(getErrorMessage(err));
     }
   };
 
