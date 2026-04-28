@@ -10,7 +10,7 @@ export function ToastProvider({ children }) {
 
   const showToast = useCallback((message, type = 'info', duration = 3000) => {
     const id = Math.random().toString(36).substr(2, 9);
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const time = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
     
     // Add to ephemeral toasts
     setToasts((prev) => [...prev, { id, message, type, duration }]);

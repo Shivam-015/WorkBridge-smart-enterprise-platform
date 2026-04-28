@@ -1,3 +1,8 @@
+/**
+ * WorkBridge Manager Dashboard Page
+ * A comprehensive dashboard supporting multiple roles: Owner, Manager, HR, Employee, and Client.
+ * Features: Attendance tracking, Task management, Project oversight, and Role-based permissions.
+ */
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DataTable from "../components/DataTable";
@@ -8,6 +13,7 @@ import { useToast } from "../components/Toast/ToastContext";
 import Modal from "../components/Modal";
 import logo from "./logo.png";
 
+// Navigation menus defined by role type
 const MENUS = {
   owner: [
     { id: "owner-dashboard", label: "Dashboard" },
@@ -37,6 +43,7 @@ const MENUS = {
   client: [{ id: "client-dashboard", label: "Dashboard" }]
 };
 
+// Permission flags used to control UI visibility and actions
 const ROLE_PERMISSION_FIELDS = [
   "can_manage_company",
   "can_manage_roles",
@@ -54,6 +61,7 @@ const ROLE_PERMISSION_FIELDS = [
   "can_manage_payroll"
 ];
 
+// Initial state structures for various dashboard views
 const EMPTY_OWNER_OVERVIEW = {
   total_clients: 0,
   total_employees: 0,
@@ -97,6 +105,10 @@ const EMPTY_HR_OVERVIEW = {
   }
 };
 
+/**
+ * Utility: Normalizes various API response formats into a flat array.
+ * Handles nested collections like .results, .data, .tasks, etc.
+ */
 function toArray(value) {
   if (Array.isArray(value)) return value;
 
@@ -159,6 +171,9 @@ function formatPermissionLabel(field) {
 
 
 
+/**
+ * IST (Indian Standard Time) Formatting Utilities
+ */
 function formatDateIST(value) {
   if (!value) return "-";
   try {
@@ -183,8 +198,8 @@ function formatDateTimeIST(value) {
       const [timePart] = value.split('.'); // Remove microseconds
       const [h, m, s] = timePart.split(':').map(Number);
       const d = new Date();
-      d.setHours(h, m, s || 0, 0);
-      return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      d.setUTCHours(h, m, s || 0, 0);
+      return d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
     }
 
     const d = new Date(value);
@@ -202,6 +217,19 @@ function formatDateTimeIST(value) {
   } catch (e) {
     return value;
   }
+}
+
+/**
+ * Returns today's date formatted as YYYY-MM-DD in the Asia/Kolkata timezone.
+ * Used for consistent "Today" calculations across the dashboard.
+ */
+function getTodayIST() {
+  return new Intl.DateTimeFormat('fr-CA', { 
+    timeZone: 'Asia/Kolkata', 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).format(new Date());
 }
 
 function makeInviteLink(inviteToken) {
@@ -429,6 +457,10 @@ function SectionTitle({ title, action }) {
   );
 }
 
+/**
+ * Interactive Monthly Attendance Calendar
+ * Visualizes present/absent/leave status for the current user or selected employee.
+ */
 function AttendanceCalendar({ attendanceRecords, leaveRecords }) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -461,7 +493,8 @@ function AttendanceCalendar({ attendanceRecords, leaveRecords }) {
   const leaveMap = useMemo(() => {
     const map = {};
     (leaveRecords || []).forEach(leave => {
-      if (leave?.status === "Approved" && leave.start_date && leave.end_date) {
+      const status = String(leave?.status || "").toUpperCase();
+      if (status === "APPROVED" && leave.start_date && leave.end_date) {
         let current = new Date(leave.start_date);
         const end = new Date(leave.end_date);
         while (current <= end) {
@@ -496,25 +529,39 @@ function AttendanceCalendar({ attendanceRecords, leaveRecords }) {
       status = leaveMap[dateStr];
     }
 
+    const todayStr = getTodayIST();
+    const isToday = todayStr === dateStr;
+    const isPast = dateStr < todayStr;
+
+    // If there's no record and the date has already passed (or is today), assume Absent
+    if (!status && (isPast || isToday)) {
+      // Exclude weekends from being marked as absent by default
+      const dayOfWeek = new Date(dateStr).getUTCDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        status = "Absent";
+      }
+    }
+
     let bgColor = "bg-white";
     let textColor = "text-slate-700";
     let badge = null;
 
-    if (status === "Present") {
-      bgColor = "bg-green-50/50";
-      badge = <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>;
-    } else if (status === "Absent") {
-      bgColor = "bg-red-50/50";
-      badge = <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>;
-    } else if (status === "Half Day") {
-      bgColor = "bg-orange-50/50";
-      badge = <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>;
-    } else if (status === "On Leave" || status === "Approved") {
-      bgColor = "bg-blue-50/50";
-      badge = <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>;
+    const normalizedStatus = status ? String(status).toUpperCase() : "";
+
+    if (normalizedStatus === "PRESENT") {
+      bgColor = "bg-green-200";
+      textColor = "text-green-900";
+      badge = <span className="w-2 h-2 rounded-full bg-green-600"></span>;
+    } else if (normalizedStatus === "ABSENT") {
+      bgColor = "bg-red-200";
+      textColor = "text-red-900";
+      badge = <span className="w-2 h-2 rounded-full bg-red-600"></span>;
+    } else if (normalizedStatus === "ON_LEAVE" || normalizedStatus === "ON LEAVE" || normalizedStatus === "APPROVED") {
+      bgColor = "bg-blue-200";
+      textColor = "text-blue-900";
+      badge = <span className="w-2 h-2 rounded-full bg-blue-600"></span>;
     }
 
-    const isToday = new Date().toISOString().split("T")[0] === dateStr;
 
     return (
       <div key={`day-${day}`} className={`p-1 min-h-[42px] border border-slate-100 flex flex-col items-center justify-center transition hover:bg-slate-50 ${bgColor} relative group`}>
@@ -556,11 +603,15 @@ function AttendanceCalendar({ attendanceRecords, leaveRecords }) {
   );
 }
 
+/**
+ * Main Dashboard Component
+ */
 export default function ManagerDashboardPage() {
   const { user, logout } = useAuth();
   const { showToast, history, unreadCount, markAllRead, clearHistory } = useToast();
   const navigate = useNavigate();
 
+  // --- UI State & Navigation ---
   const [currentUser, setCurrentUser] = useState(null);
   const [activeMenu, setActiveMenu] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("workbridge_active_menu") || "owner-dashboard" : "owner-dashboard"));
   const [roleType, setRoleType] = useState("employee");
@@ -576,6 +627,7 @@ export default function ManagerDashboardPage() {
   const [hrCalendarUserId, setHrCalendarUserId] = useState("");
 
 
+  // --- Dashboard Data State ---
   const [ownerOverview, setOwnerOverview] = useState(EMPTY_OWNER_OVERVIEW);
   const [managerOverview, setManagerOverview] = useState(EMPTY_MANAGER_OVERVIEW);
   const [hrOverview, setHrOverview] = useState(EMPTY_HR_OVERVIEW);
@@ -747,6 +799,7 @@ export default function ManagerDashboardPage() {
   const [expandedTaskProgressId, setExpandedTaskProgressId] = useState("");
   const [employeeTaskUpdateVisible, setEmployeeTaskUpdateVisible] = useState(false);
 
+  // --- Derived State & Permissions ---
   const permissions = useMemo(() => currentUser?.permissions || {}, [currentUser]);
 
   const platformName = "WorkBridge";
@@ -872,6 +925,7 @@ export default function ManagerDashboardPage() {
     return allowedMenus[0]?.id || "employee-dashboard";
   };
 
+  // --- Lifecycle Effects ---
   useEffect(() => {
     if (!menus.find((m) => m.id === activeMenu) && menus.length > 0) {
       const fallbackMenu = menus[0].id;
@@ -888,6 +942,7 @@ export default function ManagerDashboardPage() {
     }
   };
 
+  // --- Action Handlers (Mutations) ---
   const runAction = async (key, task, successMessage = "") => {
     setBusyKey(key);
 
@@ -904,6 +959,7 @@ export default function ManagerDashboardPage() {
     }
   };
 
+  // --- Data Fetching Methods ---
   const loadOwnerData = async () => {
     const [overviewRes, rolesRes, usersRes, projectsRes, tasksRes, analyticsRes, companyRes, companySingleRes] = await Promise.all([
       fetchOr("/overview/", EMPTY_OWNER_OVERVIEW),
@@ -2076,6 +2132,7 @@ export default function ManagerDashboardPage() {
     }, " Company settings saved!");
   };
 
+  // --- DataTable Column Definitions ---
   const companyColumns = [
     { key: "name", label: "Name" },
     { key: "email", label: "Email" },
@@ -2359,7 +2416,7 @@ export default function ManagerDashboardPage() {
   }, [employeeProjects, employeeTaskOptions, employeeTasks]);
 
   const employeeDashboardMetrics = useMemo(() => {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = getTodayIST();
     const rows = toArray(employeeTasks);
 
     const total = rows.length;
@@ -2453,8 +2510,9 @@ export default function ManagerDashboardPage() {
     });
   };
 
+  // --- Metrics & Analytics Calculation ---
   const ownerTaskMetrics = useMemo(() => {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = getTodayIST();
 
     const derivedTotal = ownerTasks.length;
     const derivedCompleted = ownerTasks.filter((task) => String(task?.status || "").toUpperCase() === "COMPLETED").length;
@@ -2525,7 +2583,7 @@ export default function ManagerDashboardPage() {
   const managerVisibleTaskRows = useMemo(() => toArray(managerAllTasks), [managerAllTasks]);
 
   const managerTaskMetrics = useMemo(() => {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = getTodayIST();
     const rows = managerVisibleTaskRows;
 
     const total = rows.length;
@@ -3322,10 +3380,7 @@ export default function ManagerDashboardPage() {
                 <span className="h-2 w-2 rounded-full bg-red-500" />
                 <span className="text-[10px] font-bold text-slate-600 uppercase">Absent</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-orange-500" />
-                <span className="text-[10px] font-bold text-slate-600 uppercase">Half Day</span>
-              </div>
+
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-blue-500" />
                 <span className="text-[10px] font-bold text-slate-600 uppercase">Leave</span>
@@ -3337,6 +3392,7 @@ export default function ManagerDashboardPage() {
     </div>
   );
 
+  // --- Main Render Fragment ---
   return (
     <main className="min-h-screen" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
       <header className="mb-0 text-white shadow-xl" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7", position: "relative", zIndex: 1000 }}>
@@ -3542,6 +3598,10 @@ export default function ManagerDashboardPage() {
               </div>
             );
           })()}
+
+          {/* ========================================================================= */}
+          {/*                          OWNER / ADMIN DASHBOARD                          */}
+          {/* ========================================================================= */}
           {activeMenu === "owner-dashboard" ? (
             <>
               <SectionTitle title="Owner Overview" />
@@ -3574,6 +3634,8 @@ export default function ManagerDashboardPage() {
             </>
           ) : null}
 
+
+          {/* ========================== ROLES MANAGEMENT ========================== */}
           {activeMenu === "owner-roles" || activeMenu === "manager-roles" || activeMenu === "hr-roles" ? (
             <>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
@@ -3593,6 +3655,8 @@ export default function ManagerDashboardPage() {
             </>
           ) : null}
 
+
+          {/* ========================== USERS MANAGEMENT ========================== */}
           {activeMenu === "owner-users" ? (
             <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
               <SectionTitle 
@@ -3634,6 +3698,8 @@ export default function ManagerDashboardPage() {
               </section>
             </>
           ) : null}
+
+          {/* ========================= PROJECTS MANAGEMENT ======================== */}
           {activeMenu === "owner-projects" ? (
             <>
               <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -3658,6 +3724,8 @@ export default function ManagerDashboardPage() {
               </section>
             </>
           ) : null}
+
+          {/* =========================== TASKS MANAGEMENT ========================= */}
           {activeMenu === "owner-tasks" ? (
             <>
               
@@ -3703,6 +3771,10 @@ export default function ManagerDashboardPage() {
             </section>
           ) : null}
 
+
+          {/* ========================================================================= */}
+          {/*                           MANAGER DASHBOARD                               */}
+          {/* ========================================================================= */}
           {activeMenu === "manager-dashboard" ? (
             <>
               {/* Scorecard strip */}
@@ -3812,6 +3884,10 @@ export default function ManagerDashboardPage() {
               </section>
             </>
           ) : null}
+
+          {/* ========================================================================= */}
+          {/*                          EMPLOYEE DASHBOARD                               */}
+          {/* ========================================================================= */}
           {activeMenu === "employee-dashboard" ? (
             <>
               {/* Personal progress banner */}
@@ -3881,6 +3957,10 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "employee-attendance" || activeMenu === "manager-attendance" ? renderAttendanceAndLeaveSections() : null}
 
+
+          {/* ========================================================================= */}
+          {/*                              HR DASHBOARD                                 */}
+          {/* ========================================================================= */}
           {activeMenu === "hr-dashboard" ? (
             <>
               {/* HR Command strip */}
@@ -3909,7 +3989,6 @@ export default function ManagerDashboardPage() {
                     {[
                       { label: "Present", value: hrOverview.attendance?.present, color: "#16a34a" },
                       { label: "Absent", value: hrOverview.attendance?.absent, color: "#dc2626" },
-                      { label: "Half Day", value: hrOverview.attendance?.half_day, color: "#d97706" },
                       { label: "On Leave", value: hrOverview.attendance?.on_leave, color: "#0891b2" },
                     ].map((item) => (
                       <article key={item.label} className="rounded-lg bg-white p-3 shadow-sm" style={{ border: "1px solid #e0eaff", borderLeft: `3px solid ${item.color}`, position: "relative", overflow: "hidden" }}>
@@ -4002,8 +4081,8 @@ export default function ManagerDashboardPage() {
                 </div>
                 {hrCalendarUserId ? (
                   <AttendanceCalendar 
-                    attendanceRecords={attendanceRecords.filter(r => String(r?.user?.id || r?.user) === String(hrCalendarUserId))}
-                    leaveRecords={hrLeaves.filter(l => String(l?.user?.id || l?.user) === String(hrCalendarUserId))}
+                    attendanceRecords={attendanceRecords.filter(r => getLinkedCompanyUserId(r) === String(hrCalendarUserId))}
+                    leaveRecords={hrLeaves.filter(l => getLinkedCompanyUserId(l) === String(hrCalendarUserId))}
                   />
                 ) : (
                   <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
@@ -4076,6 +4155,10 @@ export default function ManagerDashboardPage() {
             </>
           ) : null}
 
+
+          {/* ========================================================================= */}
+          {/*                             CLIENT DASHBOARD                              */}
+          {/* ========================================================================= */}
           {activeMenu === "client-dashboard" ? (
             <>
               {/* Client portfolio header */}
