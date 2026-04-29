@@ -5,7 +5,6 @@ import StatusPill from "../components/StatusPill";
 import { deleteData, getData, patchData, postData, putData } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import logo from "./logo.png";
-import AnalyticsDashboard from "../components/AnalyticsDashboard";
 
 const MENUS = {
   owner: [
@@ -13,8 +12,7 @@ const MENUS = {
     { id: "owner-roles", label: "Roles" },
     { id: "owner-users", label: "Users" },
     { id: "owner-projects", label: "Projects" },
-    { id: "owner-tasks", label: "Tasks" },
-    { id: "owner-analytics", label: "Analytics" }, 
+    { id: "owner-tasks", label: "Tasks & Analytics" },
     { id: "owner-company", label: "Company Settings" }
   ],
   manager: [
@@ -23,18 +21,15 @@ const MENUS = {
     { id: "manager-roles", label: "Roles" },
     { id: "manager-projects", label: "Projects" },
     { id: "manager-tasks", label: "Tasks" },
-    { id: "manager-analytics", label: "Analytics" }, 
     { id: "manager-attendance", label: "Attendance & Leave" }
   ],
   employee: [
     { id: "employee-dashboard", label: "Dashboard" },
-    { id: "employee-analytics", label: "Analytics" },
     { id: "employee-attendance", label: "Attendance & Leave" }
   ],
   hr: [
     { id: "hr-dashboard", label: "Dashboard" },
     { id: "hr-roles", label: "Roles" },
-    { id: "hr-analytics", label: "Analytics" },
     { id: "hr-attendance", label: "Attendance, Leave, Review" }
   ],
   client: [{ id: "client-dashboard", label: "Dashboard" }]
@@ -3841,33 +3836,6 @@ export default function ManagerDashboardPage() {
             </>
           ) : null}
 
-          {activeMenu === "owner-analytics" ||
- activeMenu === "manager-analytics" ||
- activeMenu === "employee-analytics" ||
- activeMenu === "hr-analytics" ? (
-  <AnalyticsDashboard
-    roleType={roleType}
-    ownerTasks={ownerTasks}
-    employeeTasks={employeeTasks}
-    managerAllTasks={managerAllTasks}
-    ownerProjects={ownerProjectsWithProgress}
-    managerProjects={managerProjectRowsWithProgress}
-    employeeProjects={employeeAssignedProjectRows}
-    taskProgressRows={taskProgressRows}
-    ownerOverview={ownerOverview}
-    managerOverview={managerOverviewCards}
-    hrOverview={hrOverview}
-    employeeMetrics={employeeDashboardMetrics}
-  />
-) : null}
-
-
-
-
-          
-
-
-
           {activeMenu === "client-dashboard" ? (
             <>
               {/* Client portfolio header */}
@@ -3946,3 +3914,4 @@ export default function ManagerDashboardPage() {
     </main>
   );
 }
+
