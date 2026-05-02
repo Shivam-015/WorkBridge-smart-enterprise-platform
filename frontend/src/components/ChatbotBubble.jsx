@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-const API_BASE = import.meta.env.VITE_CHATBOT_URL || "http://localhost:8001";
+const API_BASE = import.meta.env.VITE_CHATBOT_URL || "http://localhost:8000/api";
 
 // Get current user role from localStorage/auth (adjust to match your auth setup)
 function getUserRole() {
@@ -38,7 +38,7 @@ export default function ChatbotBubble() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/chat`, {
+      const res = await fetch(`${API_BASE}/chatbot/chat/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, user_role: getUserRole() }),
