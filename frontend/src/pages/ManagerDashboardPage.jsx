@@ -1,11 +1,19 @@
+/**
+ * WorkBridge Manager Dashboard Page
+ * A comprehensive dashboard supporting multiple roles: Owner, Manager, HR, Employee, and Client.
+ * Features: Attendance tracking, Task management, Project oversight, and Role-based permissions.
+ */
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DataTable from "../components/DataTable";
 import StatusPill from "../components/StatusPill";
-import { deleteData, getData, patchData, postData, putData } from "../lib/api";
+import { deleteData, getData, patchData, postData, putData, getErrorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useToast } from "../components/Toast/ToastContext";
+import Modal from "../components/Modal";
 import logo from "./logo.png";
 
+// Navigation menus defined by role type
 const MENUS = {
   owner: [
     { id: "owner-dashboard", label: "Dashboard" },
@@ -35,6 +43,7 @@ const MENUS = {
   client: [{ id: "client-dashboard", label: "Dashboard" }]
 };
 
+// Permission flags used to control UI visibility and actions
 const ROLE_PERMISSION_FIELDS = [
   "can_manage_company",
   "can_manage_roles",
@@ -52,6 +61,7 @@ const ROLE_PERMISSION_FIELDS = [
   "can_manage_payroll"
 ];
 
+// Initial state structures for various dashboard views
 const EMPTY_OWNER_OVERVIEW = {
   total_clients: 0,
   total_employees: 0,
@@ -95,6 +105,10 @@ const EMPTY_HR_OVERVIEW = {
   }
 };
 
+/**
+ * Utility: Normalizes various API response formats into a flat array.
+ * Handles nested collections like .results, .data, .tasks, etc.
+ */
 function toArray(value) {
   if (Array.isArray(value)) return value;
 
@@ -140,12 +154,82 @@ function compactPayload(payload) {
   );
 }
 
-function extractError(err) {
-  if (err?.response?.data) {
-    if (typeof err.response.data === "string") return err.response.data;
-    return JSON.stringify(err.response.data);
+function capitalizeFirst(str) {
+  if (!str) return "-";
+  const s = String(str).trim();
+  if (!s || s === "-") return "-";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function formatPermissionLabel(field) {
+  if (!field) return field;
+  return field
+    .replace(/^can_/, "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
+
+
+/**
+ * IST (Indian Standard Time) Formatting Utilities
+ */
+function formatDateIST(value) {
+  if (!value) return "-";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    }).format(d);
+  } catch (e) {
+    return value;
   }
-  return err?.message || "Request failed";
+}
+
+function formatDateTimeIST(value) {
+  if (!value) return "-";
+  try {
+    // Handle raw time strings from Django TimeField (HH:MM:SS or HH:MM:SS.mmmmmm)
+    if (typeof value === 'string' && /^\d{2}:\d{2}/.test(value) && !value.includes('-')) {
+      const [timePart] = value.split('.'); // Remove microseconds
+      const [h, m, s] = timePart.split(':').map(Number);
+      const d = new Date();
+      d.setUTCHours(h, m, s || 0, 0);
+      return d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).format(d);
+  } catch (e) {
+    return value;
+  }
+}
+
+/**
+ * Returns today's date formatted as YYYY-MM-DD in the Asia/Kolkata timezone.
+ * Used for consistent "Today" calculations across the dashboard.
+ */
+function getTodayIST() {
+  return new Intl.DateTimeFormat('fr-CA', { 
+    timeZone: 'Asia/Kolkata', 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).format(new Date());
 }
 
 function makeInviteLink(inviteToken) {
@@ -350,36 +434,200 @@ function canAccessMenu(roleType, menuId, permissions) {
 function StatCard({ label, value, accent }) {
   const color = accent || "#1d4ed8";
   return (
-    <article className="rounded-xl bg-white p-4 shadow-sm" style={{ border: "1px solid #e0eaff", borderLeft: `4px solid ${color}`, position: "relative", overflow: "hidden" }}>
+    <article 
+      className="rounded-xl bg-white p-4 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-blue-200 cursor-default" 
+      style={{ border: "1px solid #e0eaff", borderLeft: `4px solid ${color}`, position: "relative", overflow: "hidden" }}
+    >
       <div style={{ position: "absolute", top: -12, right: -12, width: 48, height: 48, borderRadius: "50%", background: color + "12", pointerEvents: "none" }} />
-      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: color + "99" }}>{label}</p>
-      <p className="mt-2 text-3xl font-extrabold" style={{ fontFamily: "'Georgia', serif", color }}>{value ?? 0}</p>
+      <p className="text-xs font-bold uppercase tracking-widest transition-colors duration-300" style={{ color: color + "99" }}>{label}</p>
+      <p className="mt-2 text-3xl font-extrabold transition-transform duration-300 hover:scale-105 origin-left" style={{ fontFamily: "'Georgia', serif", color }}>{value ?? 0}</p>
     </article>
   );
 }
 
-function SectionTitle({ title }) {
+function SectionTitle({ title, action }) {
   return (
-    <header className="mb-4 flex items-center gap-2.5">
-      <span className="inline-block h-4 w-1 rounded-full" style={{ background: "linear-gradient(180deg, #1d4ed8, #60a5fa)" }} />
-      <h2 className="text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.01em" }}>{title}</h2>
+    <header className="mb-4 flex items-center justify-between gap-2.5">
+      <div className="flex items-center gap-2.5">
+        <span className="inline-block h-4 w-1 rounded-full" style={{ background: "linear-gradient(180deg, #1d4ed8, #60a5fa)" }} />
+        <h2 className="text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.01em" }}>{title}</h2>
+      </div>
+      {action}
     </header>
   );
 }
 
+/**
+ * Interactive Monthly Attendance Calendar
+ * Visualizes present/absent/leave status for the current user or selected employee.
+ */
+function AttendanceCalendar({ attendanceRecords, leaveRecords }) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const startDayOfWeek = startOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
+  const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+
+  const prevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+  const nextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  // Process data for easy lookup
+  const attendanceMap = useMemo(() => {
+    const map = {};
+    (attendanceRecords || []).forEach(record => {
+      if (record?.date) {
+        map[record.date] = record.status;
+      }
+    });
+    return map;
+  }, [attendanceRecords]);
+
+  const leaveMap = useMemo(() => {
+    const map = {};
+    (leaveRecords || []).forEach(leave => {
+      const status = String(leave?.status || "").toUpperCase();
+      if (status === "APPROVED" && leave.start_date && leave.end_date) {
+        let current = new Date(leave.start_date);
+        const end = new Date(leave.end_date);
+        while (current <= end) {
+          const dateString = current.toISOString().split("T")[0];
+          map[dateString] = "On Leave";
+          current.setDate(current.getDate() + 1);
+        }
+      }
+    });
+    return map;
+  }, [leaveRecords]);
+
+  const days = [];
+  for (let i = 0; i < startDayOfWeek; i++) {
+    days.push(null);
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    days.push(i);
+  }
+
+  // padding end
+  while (days.length % 7 !== 0) {
+    days.push(null);
+  }
+
+  const renderDay = (day, i) => {
+    if (!day) return <div key={`empty-${i}`} className="p-1 border border-slate-100 bg-slate-50 opacity-30" />;
+    
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    let status = attendanceMap[dateStr];
+    if (!status && leaveMap[dateStr]) {
+      status = leaveMap[dateStr];
+    }
+
+    const todayStr = getTodayIST();
+    const isToday = todayStr === dateStr;
+    const isPast = dateStr < todayStr;
+
+    // If there's no record and the date has already passed (or is today), assume Absent
+    if (!status && (isPast || isToday)) {
+      // Exclude weekends from being marked as absent by default
+      const dayOfWeek = new Date(dateStr).getUTCDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        status = "Absent";
+      }
+    }
+
+    let bgColor = "bg-white";
+    let textColor = "text-slate-700";
+    let badge = null;
+
+    const normalizedStatus = status ? String(status).toUpperCase() : "";
+
+    if (normalizedStatus === "PRESENT") {
+      bgColor = "bg-green-200";
+      textColor = "text-green-900";
+      badge = <span className="w-2 h-2 rounded-full bg-green-600"></span>;
+    } else if (normalizedStatus === "ABSENT") {
+      bgColor = "bg-red-200";
+      textColor = "text-red-900";
+      badge = <span className="w-2 h-2 rounded-full bg-red-600"></span>;
+    } else if (normalizedStatus === "ON_LEAVE" || normalizedStatus === "ON LEAVE" || normalizedStatus === "APPROVED") {
+      bgColor = "bg-blue-200";
+      textColor = "text-blue-900";
+      badge = <span className="w-2 h-2 rounded-full bg-blue-600"></span>;
+    }
+
+
+    return (
+      <div key={`day-${day}`} className={`p-1 min-h-[42px] border border-slate-100 flex flex-col items-center justify-center transition hover:bg-slate-50 ${bgColor} relative group`}>
+        <span className={`text-[11px] font-bold ${isToday ? 'text-blue-700 underline decoration-2 underline-offset-2' : textColor}`}>
+          {day}
+        </span>
+        {badge && (
+          <div className="mt-0.5">
+            {badge}
+          </div>
+        )}
+        {status && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10 bg-slate-800 text-white text-[10px] px-2 py-0.5 rounded shadow-lg whitespace-nowrap pointer-events-none">
+            {status}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  return (
+    <div className="rounded-xl border border-blue-100 bg-white overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between bg-slate-50 p-2 border-b border-blue-100">
+        <button type="button" onClick={prevMonth} className="p-1 px-2 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition text-xs">&larr;</button>
+        <h3 className="font-bold text-blue-900 text-xs tracking-tight">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h3>
+        <button type="button" onClick={nextMonth} className="p-1 px-2 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 transition text-xs">&rarr;</button>
+      </div>
+      <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
+          <div key={d} className="p-1 text-center text-[9px] font-black text-slate-400 uppercase">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 bg-white">
+        {days.map((day, i) => renderDay(day, i))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Main Dashboard Component
+ */
 export default function ManagerDashboardPage() {
   const { user, logout } = useAuth();
+  const { showToast, history, unreadCount, markAllRead, clearHistory } = useToast();
   const navigate = useNavigate();
 
+  // --- UI State & Navigation ---
   const [currentUser, setCurrentUser] = useState(null);
+  const [activeMenu, setActiveMenu] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("workbridge_active_menu") || "owner-dashboard" : "owner-dashboard"));
   const [roleType, setRoleType] = useState("employee");
-  const [activeMenu, setActiveMenu] = useState("employee-dashboard");
-
   const [busyKey, setBusyKey] = useState("");
-  const [errorText, setErrorText] = useState("");
-  const [noticeText, setNoticeText] = useState("");
   const [inviteLink, setInviteLink] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showAddRoleModal, setShowAddRoleModal] = useState(false);
+  const [showEditRoleModal, setShowEditRoleModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [hrCalendarUserId, setHrCalendarUserId] = useState("");
 
+
+  // --- Dashboard Data State ---
   const [ownerOverview, setOwnerOverview] = useState(EMPTY_OWNER_OVERVIEW);
   const [managerOverview, setManagerOverview] = useState(EMPTY_MANAGER_OVERVIEW);
   const [hrOverview, setHrOverview] = useState(EMPTY_HR_OVERVIEW);
@@ -551,6 +799,7 @@ export default function ManagerDashboardPage() {
   const [expandedTaskProgressId, setExpandedTaskProgressId] = useState("");
   const [employeeTaskUpdateVisible, setEmployeeTaskUpdateVisible] = useState(false);
 
+  // --- Derived State & Permissions ---
   const permissions = useMemo(() => currentUser?.permissions || {}, [currentUser]);
 
   const platformName = "WorkBridge";
@@ -634,8 +883,7 @@ export default function ManagerDashboardPage() {
     return null;
   }, [roles]);
 
-  const defaultScopedCompanyId = useMemo(
-    () =>
+  const defaultScopedCompanyId = useMemo(() =>
       numberOrNull(
         currentUser?.company_id ||
         currentUser?.company?.id ||
@@ -655,12 +903,8 @@ export default function ManagerDashboardPage() {
 
   const persistActiveMenu = (menuId) => {
     if (typeof window === "undefined" || !menuId) return;
-    window.localStorage.setItem("dashboard.activeMenu", menuId);
-
-    const targetHash = `#${menuId}`;
-    if (window.location.hash !== targetHash) {
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${targetHash}`);
-    }
+    window.localStorage.setItem("workbridge_active_menu", menuId);
+    setActiveMenu(menuId);
   };
 
   const getInitialMenuForType = (type, permissionMap) => {
@@ -672,17 +916,16 @@ export default function ManagerDashboardPage() {
       return allowedMenus[0]?.id || "employee-dashboard";
     }
 
-    const hashMenu = String(window.location.hash || "").replace(/^#/, "");
-    const storedMenu = String(window.localStorage.getItem("dashboard.activeMenu") || "");
-    const preferredMenu = hashMenu || storedMenu;
+    const storedMenu = String(window.localStorage.getItem("workbridge_active_menu") || "");
 
-    if (preferredMenu && allowedMenus.some((item) => item.id === preferredMenu)) {
-      return preferredMenu;
+    if (storedMenu && allowedMenus.some((item) => item.id === storedMenu)) {
+      return storedMenu;
     }
 
     return allowedMenus[0]?.id || "employee-dashboard";
   };
 
+  // --- Lifecycle Effects ---
   useEffect(() => {
     if (!menus.find((m) => m.id === activeMenu) && menus.length > 0) {
       const fallbackMenu = menus[0].id;
@@ -699,21 +942,24 @@ export default function ManagerDashboardPage() {
     }
   };
 
+  // --- Action Handlers (Mutations) ---
   const runAction = async (key, task, successMessage = "") => {
     setBusyKey(key);
-    setErrorText("");
-    setNoticeText("");
 
     try {
       await task();
-      if (successMessage) setNoticeText(successMessage);
+      if (successMessage) {
+        showToast(successMessage, "success");
+      }
     } catch (err) {
-      setErrorText(extractError(err));
+      const msg = getErrorMessage(err);
+      showToast(msg, "error");
     } finally {
       setBusyKey("");
     }
   };
 
+  // --- Data Fetching Methods ---
   const loadOwnerData = async () => {
     const [overviewRes, rolesRes, usersRes, projectsRes, tasksRes, analyticsRes, companyRes, companySingleRes] = await Promise.all([
       fetchOr("/overview/", EMPTY_OWNER_OVERVIEW),
@@ -864,7 +1110,6 @@ export default function ManagerDashboardPage() {
       const menuId = getInitialMenuForType(type, me?.permissions || {});
       setRoleType(type);
       setActiveMenu(menuId);
-      persistActiveMenu(menuId);
       await refreshByRole(type, me);
     }, "");
   };
@@ -880,8 +1125,7 @@ export default function ManagerDashboardPage() {
     setCreateRoleForm((prev) => (prev.company ? prev : { ...prev, company: defaultValue }));
   }, [defaultScopedCompanyId]);
 
-  const createUserCompanyId = useMemo(
-    () =>
+  const createUserCompanyId = useMemo(() =>
       numberOrNull(
         createUserForm.company_id ||
         currentUser?.company_id ||
@@ -913,7 +1157,7 @@ export default function ManagerDashboardPage() {
       const levelText =
         role?.level !== undefined && role?.level !== null && role?.level !== "" ? ` (L${role.level})` : "";
 
-      options.push({ id: key, label: `${labelBase}${levelText}` });
+      options.push({ id: key, label: `${capitalizeFirst(labelBase)}${levelText}` });
     }
 
     return options;
@@ -1004,20 +1248,19 @@ export default function ManagerDashboardPage() {
   }, [activeMenu, teamMembers, users]);
 
   const managerUserOptions = useMemo(() => {
-    return companyUserOptions.filter((option) => option.roleText.includes("manager") || option.roleText.includes("owner"));
+    return companyUserOptions.filter((option) => option.roleText.includes("manager"));
   }, [companyUserOptions]);
 
   const clientUserOptions = useMemo(() => {
     return companyUserOptions.filter((option) => option.roleText.includes("client"));
   }, [companyUserOptions]);
 
-  const updateRoleOptions = useMemo(
-    () =>
+  const updateRoleOptions = useMemo(() =>
       roles
         .filter((role) => role?.id !== undefined && role?.id !== null)
         .map((role) => ({
           id: String(role.id),
-          label: `${role?.name || role?.slug || "Role"} (L${role?.level ?? "-"})`
+          label: `${capitalizeFirst(role?.name || role?.slug || "Role")} (L${role?.level ?? "-"})`
         })),
     [roles]
   );
@@ -1125,12 +1368,12 @@ export default function ManagerDashboardPage() {
     const roleId = numberOrNull(createUserForm.role_id);
 
     if (companyId === null) {
-      setErrorText("Valid company_id is required.");
+      showToast("Valid company_id is required.", "error");
       return;
     }
 
     if (roleId === null) {
-      setErrorText("Please select a role.");
+      showToast("Please select a role.", "error");
       return;
     }
 
@@ -1147,7 +1390,8 @@ export default function ManagerDashboardPage() {
 
       setCreateUserForm({ company_id: String(companyId), first_name: "", email: "", role_id: "" });
       await refreshByRole(roleType);
-    }, "✅ User invited successfully! Invite link generated.");
+      setShowAddUserModal(false);
+    }, " User invited successfully! Invite link generated.");
   };
 
   const submitCreateRole = async (e) => {
@@ -1164,13 +1408,13 @@ export default function ManagerDashboardPage() {
     );
 
     if (companyId === null) {
-      setErrorText("Valid company id is required for role creation.");
+      showToast("Valid company id is required for role creation.", "error");
       return;
     }
 
     const level = Number(createRoleForm.level);
     if (Number.isNaN(level)) {
-      setErrorText("Role level must be numeric.");
+      showToast("Role level must be numeric.", "error");
       return;
     }
 
@@ -1181,7 +1425,7 @@ export default function ManagerDashboardPage() {
       .replace(/-+$/, "");
 
     if (!normalizedSlug) {
-      setErrorText("Role slug is required.");
+      showToast("Role slug is required.", "error");
       return;
     }
 
@@ -1200,7 +1444,8 @@ export default function ManagerDashboardPage() {
         level: String(level)
       }));
       await refreshByRole(roleType);
-    }, "✅ Role created successfully!");
+      setShowAddRoleModal(false);
+    }, "Role created successfully!");
   };
 
   const updateRoleFromList = (roleRow) => {
@@ -1220,7 +1465,7 @@ export default function ManagerDashboardPage() {
     }
 
     setUpdateRoleForm(nextState);
-
+    setShowEditRoleModal(true);
   };
 
   const handleUpdateRoleSelection = (roleId) => {
@@ -1239,13 +1484,13 @@ export default function ManagerDashboardPage() {
 
     const roleId = numberOrNull(updateRoleForm.role_id);
     if (roleId === null) {
-      setErrorText("Please select a role to update.");
+      showToast("Please select a role to update.", "error");
       return;
     }
 
     const level = Number(updateRoleForm.level);
     if (Number.isNaN(level)) {
-      setErrorText("Role level must be numeric.");
+      showToast("Role level must be numeric.", "error");
       return;
     }
 
@@ -1256,7 +1501,7 @@ export default function ManagerDashboardPage() {
       .replace(/-+$/, "");
 
     if (!normalizedSlug) {
-      setErrorText("Role slug is required.");
+      showToast("Role slug is required.", "error");
       return;
     }
 
@@ -1271,7 +1516,8 @@ export default function ManagerDashboardPage() {
     await runAction(`update-role-${roleId}`, async () => {
       await patchData(`/roles/${roleId}/`, payload);
       await refreshByRole(roleType);
-    }, "✅ Role updated successfully!");
+      setShowEditRoleModal(false);
+    }, "Role updated successfully!");
   };
 
   const deleteRoleFromList = async (roleRow) => {
@@ -1288,7 +1534,7 @@ export default function ManagerDashboardPage() {
     await runAction(`delete-role-${roleId}`, async () => {
       await deleteData(`/roles/${roleId}/`);
       await refreshByRole(roleType);
-    }, "✅ Role deleted.");
+    }, " Role deleted.");
   };
 
   const updateUserFromList = (userRow) => {
@@ -1296,7 +1542,7 @@ export default function ManagerDashboardPage() {
     if (!userId) return;
 
     if (!permissions.can_manage_users) {
-      setErrorText("You do not have permission to manage users.");
+      showToast("You do not have permission to manage users.", "error");
       return;
     }
 
@@ -1319,7 +1565,7 @@ export default function ManagerDashboardPage() {
       status: String(userRow?.status || "ACTIVE").trim()
     });
 
-
+    setShowEditUserModal(true);
   };
 
   const handleUpdateUserSelection = (userId) => {
@@ -1338,19 +1584,19 @@ export default function ManagerDashboardPage() {
     e.preventDefault();
 
     if (!permissions.can_manage_users) {
-      setErrorText("You do not have permission to manage users.");
+      showToast("You do not have permission to manage users.", "error");
       return;
     }
 
     const userId = numberOrNull(updateUserForm.user_id);
     if (userId === null) {
-      setErrorText("Please select a user to update.");
+      showToast("Please select a user to update.", "error");
       return;
     }
 
     const roleId = numberOrNull(updateUserForm.role);
     if (roleId === null) {
-      setErrorText("Please select a role.");
+      showToast("Please select a role.", "error");
       return;
     }
 
@@ -1363,7 +1609,8 @@ export default function ManagerDashboardPage() {
     await runAction(`update-user-${userId}`, async () => {
       await patchData(`/update-user/${userId}/`, payload);
       await refreshByRole(roleType);
-    }, "✅ User updated successfully!");
+      setShowEditUserModal(false);
+    }, " User updated successfully!");
   };
 
   const deleteUserFromList = async (userRow) => {
@@ -1371,7 +1618,7 @@ export default function ManagerDashboardPage() {
     if (!userId) return;
 
     if (!permissions.can_manage_users) {
-      setErrorText("You do not have permission to manage users.");
+      showToast("You do not have permission to manage users.", "error");
       return;
     }
 
@@ -1382,7 +1629,7 @@ export default function ManagerDashboardPage() {
     await runAction(`delete-user-${userId}`, async () => {
       await deleteData(`/delete-user/${userId}/`);
       await refreshByRole(roleType);
-    }, "✅ User deleted.");
+    }, " User deleted.");
   };
 
   const submitCreateProject = async (e) => {
@@ -1418,7 +1665,8 @@ export default function ManagerDashboardPage() {
         is_active: true
       });
       await refreshByRole(roleType);
-    }, "✅ Project created successfully!");
+      setShowAddProjectModal(false);
+    }, " Project created successfully!");
   };
 
   const submitAssignClient = async (e) => {
@@ -1428,7 +1676,7 @@ export default function ManagerDashboardPage() {
         client: Number(assignClientForm.client)
       });
       await refreshByRole(roleType);
-    }, "✅ Client assigned to project!");
+    }, " Client assigned to project!");
   };
 
   const submitDeactivateProject = async (e) => {
@@ -1436,14 +1684,14 @@ export default function ManagerDashboardPage() {
     await runAction("deactivate-project", async () => {
       await patchData(`/projects/${deactivateProjectForm.project_id}/deactivate/`, {});
       await refreshByRole(roleType);
-    }, "✅ Project deactivated.");
+    }, " Project deactivated.");
   };
 
   const submitUpdateProject = async (e) => {
     e.preventDefault();
 
     if (!String(updateProjectForm.project_id || "").trim()) {
-      setErrorText("Select a project to update.");
+      showToast("Select a project to update.", "error");
       return;
     }
 
@@ -1465,7 +1713,7 @@ export default function ManagerDashboardPage() {
         })
       );
       await refreshByRole(roleType);
-    }, "✅ Project updated successfully!");
+    }, " Project updated successfully!");
   };
 
   const submitDeleteProject = async (e) => {
@@ -1474,7 +1722,7 @@ export default function ManagerDashboardPage() {
       await deleteData(`/projects/${deleteProjectForm.project_id}/`);
       setDeleteProjectForm({ project_id: "" });
       await refreshByRole(roleType);
-    }, "✅ Project deleted.");
+    }, " Project deleted.");
   };
 
   const assignClientFromProjectRow = async (projectRow) => {
@@ -1496,14 +1744,14 @@ export default function ManagerDashboardPage() {
 
     const parsedClient = Number(String(nextClient || "").trim());
     if (Number.isNaN(parsedClient)) {
-      setErrorText("Client number must be numeric.");
+      showToast("Client number must be numeric.", "error");
       return;
     }
 
     await runAction(`assign-project-client-${projectId}`, async () => {
       await patchData(`/projects/${projectId}/assign_client/`, { client: parsedClient });
       await refreshByRole(roleType);
-    }, "✅ Client assigned to project!");
+    }, " Client assigned to project!");
   };
 
   const updateProjectFromList = async (projectRow) => {
@@ -1562,7 +1810,7 @@ export default function ManagerDashboardPage() {
       if (["true", "1", "yes", "y"].includes(activeInput)) parsedActive = true;
       else if (["false", "0", "no", "n"].includes(activeInput)) parsedActive = false;
       else {
-        setErrorText("is_active must be true or false.");
+        showToast("is_active must be true or false.", "error");
         return;
       }
     }
@@ -1577,7 +1825,7 @@ export default function ManagerDashboardPage() {
     });
 
     if (payload.client !== undefined && Number.isNaN(payload.client)) {
-      setErrorText("Client number must be numeric.");
+      showToast("Client number must be numeric.", "error");
       return;
     }
 
@@ -1589,7 +1837,7 @@ export default function ManagerDashboardPage() {
     await runAction(`update-project-${projectId}`, async () => {
       await patchData(`/projects/${projectId}/`, payload);
       await refreshByRole(roleType);
-    }, "✅ Project updated successfully!");
+    }, " Project updated successfully!");
   };
 
   const deleteProjectFromList = async (projectRow) => {
@@ -1607,7 +1855,7 @@ export default function ManagerDashboardPage() {
         await deleteData(`/projects/${projectId}/deactivate/`);
       }
       await refreshByRole(roleType);
-    }, "✅ Project deleted.");
+    }, " Project deleted.");
   };
 
   const submitCreateTask = async (e) => {
@@ -1618,7 +1866,7 @@ export default function ManagerDashboardPage() {
       payload.append("description", String(createTaskForm.description || "").trim());
       const assignedToId = numberOrNull(createTaskForm.assigned_to);
       if (assignedToId === null) {
-        setErrorText("Please select an assignee.");
+        showToast("Please select an assignee.", "error");
         return;
       }
 
@@ -1668,7 +1916,8 @@ export default function ManagerDashboardPage() {
         image: null
       });
       await refreshByRole(roleType);
-    }, "✅ Task created successfully!");
+      setShowCreateTaskModal(false);
+    }, " Task created successfully!");
   };
 
   const submitLoadManagerProjectTasks = async (e) => {
@@ -1696,14 +1945,14 @@ export default function ManagerDashboardPage() {
 
     const canUpdateTask = managerTaskOptions.some((task) => String(task?.id) === String(managerUpdateTaskForm.task_id || ""));
     if (!canUpdateTask) {
-      setErrorText("You can only update tasks created by you.");
+      showToast("You can only update tasks created by you.", "error");
       return;
     }
 
     await runAction("manager-update-task", async () => {
       await putData(`/tasks/${managerUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(managerUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "✅ Task updated successfully!");
+    }, " Task updated successfully!");
   };
 
   const submitOwnerUpdateTask = async (e) => {
@@ -1711,7 +1960,7 @@ export default function ManagerDashboardPage() {
     await runAction("owner-update-task", async () => {
       await putData(`/tasks/${ownerUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(ownerUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "✅ Task updated successfully!");
+    }, " Task updated successfully!");
   };
 
   const deleteTaskFromList = async (taskRow) => {
@@ -1738,7 +1987,7 @@ export default function ManagerDashboardPage() {
       } else {
         setManagerProjectTasks((prev) => prev.filter((task) => Number(task?.id) !== numericTaskId));
       }
-    }, "✅ Task deleted.");
+    }, " Task deleted.");
   };
 
   const openTaskDetails = (taskRow) => {
@@ -1764,28 +2013,28 @@ export default function ManagerDashboardPage() {
 
     const canUpdateTask = employeeTaskOptions.some((task) => String(task?.id) === String(employeeUpdateTaskForm.task_id || ""));
     if (!canUpdateTask) {
-      setErrorText("You can only update tasks assigned to you.");
+      showToast("You can only update tasks assigned to you.", "error");
       return;
     }
 
     await runAction("employee-update-task", async () => {
       await putData(`/tasks/${employeeUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(employeeUpdateTaskForm));
       await refreshByRole(roleType);
-    }, "✅ Task updated successfully!");
+    }, " Task updated successfully!");
   };
 
   const submitCheckIn = async () => {
     await runAction("checkin", async () => {
       await postData("/attendance/checkin/", {});
       await refreshByRole(roleType);
-    }, "✅ Checked in successfully!");
+    }, " Checked in successfully!");
   };
 
   const submitCheckOut = async () => {
     await runAction("checkout", async () => {
       await postData("/attendance/checkout/", {});
       await refreshByRole(roleType);
-    }, "✅ Checked out successfully!");
+    }, " Checked out successfully!");
   };
 
   const submitLeaveApply = async (e) => {
@@ -1794,7 +2043,7 @@ export default function ManagerDashboardPage() {
       await postData("/leave/apply/", leaveApplyForm);
       setLeaveApplyForm({ start_date: "", end_date: "", reason: "" });
       await refreshByRole(roleType);
-    }, "✅ Leave application submitted!");
+    }, " Leave application submitted!");
   };
 
   const updateHrLeaveStatus = async (leaveRow, status) => {
@@ -1813,7 +2062,7 @@ export default function ManagerDashboardPage() {
     await runAction("hr-leave-status", async () => {
       await patchData(`/leave/${leaveStatusForm.leave_id}/status/`, { status: leaveStatusForm.status });
       await loadHrData();
-    }, `✅ Leave status updated to ${leaveStatusForm.status}!`);
+    }, ` Leave status updated to ${leaveStatusForm.status}!`);
   };
 
   const submitPerformanceReview = async (e) => {
@@ -1824,7 +2073,7 @@ export default function ManagerDashboardPage() {
         feedback: reviewForm.feedback
       });
       setReviewForm({ employee_id: "", rating: "4", feedback: "" });
-    }, "✅ Performance review submitted!");
+    }, " Performance review submitted!");
   };
 
   const submitCreateDepartment = async (e) => {
@@ -1833,7 +2082,7 @@ export default function ManagerDashboardPage() {
       await postData("/departments/", departmentForm);
       setDepartmentForm({ name: "", description: "" });
       await loadHrData();
-    }, "✅ Department created successfully!");
+    }, " Department created successfully!");
   };
 
   const handleCompanyLogoChange = (e) => {
@@ -1880,9 +2129,10 @@ export default function ManagerDashboardPage() {
       }
 
       await loadOwnerData();
-    }, "✅ Company settings saved!");
+    }, " Company settings saved!");
   };
 
+  // --- DataTable Column Definitions ---
   const companyColumns = [
     { key: "name", label: "Name" },
     { key: "email", label: "Email" },
@@ -2166,7 +2416,7 @@ export default function ManagerDashboardPage() {
   }, [employeeProjects, employeeTaskOptions, employeeTasks]);
 
   const employeeDashboardMetrics = useMemo(() => {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = getTodayIST();
     const rows = toArray(employeeTasks);
 
     const total = rows.length;
@@ -2260,8 +2510,9 @@ export default function ManagerDashboardPage() {
     });
   };
 
+  // --- Metrics & Analytics Calculation ---
   const ownerTaskMetrics = useMemo(() => {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = getTodayIST();
 
     const derivedTotal = ownerTasks.length;
     const derivedCompleted = ownerTasks.filter((task) => String(task?.status || "").toUpperCase() === "COMPLETED").length;
@@ -2332,7 +2583,7 @@ export default function ManagerDashboardPage() {
   const managerVisibleTaskRows = useMemo(() => toArray(managerAllTasks), [managerAllTasks]);
 
   const managerTaskMetrics = useMemo(() => {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayISO = getTodayIST();
     const rows = managerVisibleTaskRows;
 
     const total = rows.length;
@@ -2359,23 +2610,22 @@ export default function ManagerDashboardPage() {
     [managerProjects, ownerProjects]
   );
 
-  const ownerProjectsWithProgress = useMemo(
-    () => buildProjectsWithTaskProgress(ownerProjects, ownerTasks),
+  const ownerProjectsWithProgress = useMemo(() =>
+      buildProjectsWithTaskProgress(ownerProjects, ownerTasks),
     [ownerProjects, ownerTasks]
   );
 
-  const clientProjectsWithProgress = useMemo(
-    () => buildProjectsWithTaskProgress(clientProjects, []),
+  const clientProjectsWithProgress = useMemo(() =>
+      buildProjectsWithTaskProgress(clientProjects, []),
     [clientProjects]
   );
 
-  const managerProjectRowsWithProgress = useMemo(
-    () => buildProjectsWithTaskProgress(managerProjectRows, managerScopedTasks),
+  const managerProjectRowsWithProgress = useMemo(() =>
+      buildProjectsWithTaskProgress(managerProjectRows, managerScopedTasks),
     [managerProjectRows, managerScopedTasks]
   );
 
-  const managerProjectTeamGroups = useMemo(
-    () =>
+  const managerProjectTeamGroups = useMemo(() =>
       managerProjectRowsWithProgress.map((project) => ({
         ...project,
         teamMembers: toArray(managerProjectTeamsByProjectId[String(project?.id || "")])
@@ -2443,10 +2693,10 @@ export default function ManagerDashboardPage() {
       label: "Role",
       render: (value, row) => {
         if (value && typeof value === "object") {
-          return value?.name || value?.slug || value?.id || "-";
+          return capitalizeFirst(value?.name || value?.slug || value?.id || "-");
         }
         const roleName = row?.role_name || value;
-        return roleName === undefined || roleName === null || roleName === "" ? "-" : String(roleName);
+        return capitalizeFirst(roleName);
       }
     },
     {
@@ -2523,8 +2773,8 @@ export default function ManagerDashboardPage() {
     { key: "name", label: "Name" },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> },
     { key: "priority", label: "Priority", render: (value) => <StatusPill value={value} /> },
-    { key: "start_date", label: "Start" },
-    { key: "end_date", label: "End" },
+    { key: "start_date", label: "Start", render: (value) => formatDateIST(value) },
+    { key: "end_date", label: "End", render: (value) => formatDateIST(value) },
     { key: "progress", label: "Progress" }
   ];
 
@@ -2554,8 +2804,8 @@ export default function ManagerDashboardPage() {
 
   const readOnlyUserColumns = userColumns.filter((column) => column.key !== "actions");
   
-  const managerUserListColumns = readOnlyUserColumns.filter((column) =>
-    ["name", "email", "role", "status"].includes(String(column?.key || ""))
+  const managerUserListColumns = userColumns.filter((column) =>
+    ["name", "email", "role", "status", "actions"].includes(String(column?.key || ""))
   );
 
   const userListColumns = userColumns.map((column) => {
@@ -2565,19 +2815,31 @@ export default function ManagerDashboardPage() {
       ...column,
       render: (_, row) => {
         const rowId = row?.id;
+        const updating = busyKey === `update-user-${rowId}`;
         const deleting = busyKey === `delete-user-${rowId}`;
-        const disabled = !permissions.can_manage_users || !rowId || deleting;
+        const disabled = !permissions.can_manage_users || !rowId || updating || deleting;
 
         return (
-          <button
-            type="button"
-            className="btn !bg-rose-600 !px-2 !py-1 text-xs text-white hover:!bg-rose-700"
-            onClick={(e) => { e.stopPropagation(); deleteUserFromList(row); }}
-            disabled={disabled}
-            title={permissions.can_manage_users ? "Delete user" : "No permission"}
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn-secondary !px-2 !py-1 text-xs"
+              onClick={(e) => { e.stopPropagation(); updateUserFromList(row); }}
+              disabled={disabled}
+              title={permissions.can_manage_users ? "Edit user" : "No permission"}
+            >
+              {updating ? "Saving..." : "Edit"}
+            </button>
+            <button
+              type="button"
+              className="btn !bg-rose-600 !px-2 !py-1 text-xs text-white hover:!bg-rose-700"
+              onClick={(e) => { e.stopPropagation(); deleteUserFromList(row); }}
+              disabled={disabled}
+              title={permissions.can_manage_users ? "Delete user" : "No permission"}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
         );
       }
     };
@@ -2656,26 +2918,27 @@ export default function ManagerDashboardPage() {
 
   const resolveHrUserRole = (row) => {
     const directRole = String(row?.employee_role || row?.role_name || row?.role || "").trim();
-    if (directRole) return directRole;
+    if (directRole) return capitalizeFirst(directRole);
 
     const userId = getLinkedCompanyUserId(row);
-    return userId ? hrUserRoleById[userId] || "-" : "-";
+    const roleFromId = userId ? hrUserRoleById[userId] || "-" : "-";
+    return capitalizeFirst(roleFromId);
   };
 
   const hrAttendanceColumns = [
     { key: "employee_name", label: "Employee", render: (_, row) => resolveHrUserName(row) },
     { key: "role", label: "Role", render: (_, row) => resolveHrUserRole(row) },
-    { key: "date", label: "Date" },
-    { key: "check_in", label: "Check-in" },
-    { key: "check_out", label: "Check-out" },
+    { key: "date", label: "Date", render: (value) => formatDateIST(value) },
+    { key: "check_in", label: "Check-in", render: (value) => formatDateTimeIST(value) },
+    { key: "check_out", label: "Check-out", render: (value) => formatDateTimeIST(value) },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> }
   ];
 
   const hrLeaveApprovalColumns = [
     { key: "employee_name", label: "Name", render: (_, row) => resolveHrUserName(row) },
     { key: "role", label: "Role", render: (_, row) => resolveHrUserRole(row) },
-    { key: "start_date", label: "From Date" },
-    { key: "end_date", label: "End Date" },
+    { key: "start_date", label: "From Date", render: (value) => formatDateIST(value) },
+    { key: "end_date", label: "End Date", render: (value) => formatDateIST(value) },
     { key: "reason", label: "Reason" },
     {
       key: "actions",
@@ -2802,8 +3065,8 @@ export default function ManagerDashboardPage() {
     return ids;
   }, [roleNameById, teamMembers, users]);
 
-  const currentCompanyUserId = useMemo(
-    () => String(getEntityId(currentUser?.id) || ""),
+  const currentCompanyUserId = useMemo(() =>
+      String(getEntityId(currentUser?.id) || ""),
     [currentUser]
   );
 
@@ -2821,8 +3084,7 @@ export default function ManagerDashboardPage() {
     );
   }, [currentCompanyUserId, ownerTasks]);
 
-  const ownerEmployeeTaskRows = useMemo(
-    () =>
+  const ownerEmployeeTaskRows = useMemo(() =>
       toArray(ownerTasks).filter((task) => {
         const assignedId = String(getEntityId(task?.assigned_to) || "");
         return assignedId && employeeUserIds.has(assignedId);
@@ -2837,8 +3099,7 @@ export default function ManagerDashboardPage() {
     );
   }, [currentCompanyUserId, managerAllTasks]);
 
-  const managerEmployeeTaskRows = useMemo(
-    () =>
+  const managerEmployeeTaskRows = useMemo(() =>
       toArray(managerAllTasks).filter((task) => {
         const assignedId = String(getEntityId(task?.assigned_to) || "");
         return assignedId && employeeUserIds.has(assignedId);
@@ -2959,7 +3220,7 @@ export default function ManagerDashboardPage() {
     },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> },
     { key: "priority", label: "Priority", render: (value) => <StatusPill value={value} /> },
-    { key: "due_date", label: "Due Date" },
+    { key: "due_date", label: "Due Date", render: (value) => formatDateIST(value) },
     { key: "progress", label: "Progress" },
     {
       key: "reference_link",
@@ -2992,8 +3253,8 @@ export default function ManagerDashboardPage() {
     { key: "title", label: "Name" },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> },
     { key: "progress", label: "Progress" },
-    { key: "created_at", label: "Created Date" },
-    { key: "due_date", label: "Due Date" },
+    { key: "created_at", label: "Created Date", render: (value) => formatDateTimeIST(value) },
+    { key: "due_date", label: "Due Date", render: (value) => formatDateIST(value) },
     {
       key: "created_by",
       label: "Created By",
@@ -3032,16 +3293,16 @@ export default function ManagerDashboardPage() {
   ];
 
   const leaveColumns = [
-    { key: "start_date", label: "Start" },
-    { key: "end_date", label: "End" },
+    { key: "start_date", label: "Start", render: (value) => formatDateIST(value) },
+    { key: "end_date", label: "End", render: (value) => formatDateIST(value) },
     { key: "reason", label: "Reason" },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> }
   ];
 
   const attendanceColumns = [
-    { key: "date", label: "Date" },
-    { key: "check_in", label: "Check-in" },
-    { key: "check_out", label: "Check-out" },
+    { key: "date", label: "Date", render: (value) => formatDateIST(value) },
+    { key: "check_in", label: "Check-in", render: (value) => formatDateTimeIST(value) },
+    { key: "check_out", label: "Check-out", render: (value) => formatDateTimeIST(value) },
     { key: "status", label: "Status", render: (value) => <StatusPill value={value} /> }
   ];
   const renderManagerProjectTeamSections = () => (
@@ -3066,44 +3327,82 @@ export default function ManagerDashboardPage() {
   );
 
   const renderAttendanceAndLeaveSections = () => (
-    <>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Attendance Actions" />
-        <div className="flex flex-wrap gap-2">
-          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
-          <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      {/* Left Column: Actions and History */}
+      <div className="lg:col-span-2 space-y-6">
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Attendance Actions" />
+          <div className="flex flex-wrap gap-2">
+            <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
+            <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Attendance History" />
+          <DataTable columns={attendanceColumns} rows={employeeAttendanceRows} emptyText="No attendance records" />
+        </section>
+
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Leaves Applied Status" />
+          <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leave history" />
+        </section>
+
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <SectionTitle title="Leave Application Form" />
+          <form className="grid gap-3 md:grid-cols-2" onSubmit={submitLeaveApply}>
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
+            <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
+            <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
+              <span className="font-medium">Reason</span>
+              <textarea className="input min-h-24 md:col-span-2" value={leaveApplyForm.reason} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, reason: e.target.value }))} required />
+            </label>
+            <button className="btn-primary md:col-span-2" disabled={busyKey === "apply-leave"}>
+              {busyKey === "apply-leave" ? "Submitting..." : "Apply Leave"}
+            </button>
+          </form>
+        </section>
+      </div>
+
+      {/* Right Column: Small Calendar */}
+      <div className="lg:col-span-1">
+        <div className="sticky top-6">
+          <AttendanceCalendar attendanceRecords={employeeAttendanceRows} leaveRecords={myLeaves} />
+          
+          <div className="mt-4 rounded-xl border border-blue-50 bg-white p-4 shadow-sm">
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Quick Legend</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Present</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Absent</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-blue-500" />
+                <span className="text-[10px] font-bold text-slate-600 uppercase">Leave</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Attendance History" />
-        <DataTable columns={attendanceColumns} rows={employeeAttendanceRows} emptyText="No attendance records" />
-      </section>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Leaves Applied Status" />
-        <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leave history" />
-      </section>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Leave Application Form" />
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={submitLeaveApply}>
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
-          <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Reason</span><textarea className="input min-h-24 md:col-span-2" value={leaveApplyForm.reason} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, reason: e.target.value }))} required /></label>
-          <button className="btn-primary md:col-span-2" disabled={busyKey === "apply-leave"}>{busyKey === "apply-leave" ? "Submitting..." : "Apply Leave"}</button>
-        </form>
-      </section>
-    </>
+      </div>
+    </div>
   );
 
+  // --- Main Render Fragment ---
   return (
     <main className="min-h-screen" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
-      <header className="mb-0 overflow-hidden text-white shadow-xl" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7", position: "relative" }}>
+      <header className="mb-0 text-white shadow-xl" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7", position: "relative", zIndex: 1000 }}>
         <div style={{ position: "absolute", top: -25, right: 80, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: 8, right: 30, width: 55, height: 55, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -15, left: 300, width: 70, height: 70, borderRadius: "50%", background: "rgba(30,77,183,0.2)", pointerEvents: "none" }} />
         <div className="relative flex flex-wrap items-center justify-between gap-3 px-6 py-4 md:px-6">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white/30" style={{ boxShadow: "0 0 0 4px rgba(30,77,183,0.35)" }}>
-              <img src={logo} alt="WorkBridge" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src={dashboardCompanyInfo.logo} alt="WorkBridge" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
             <div>
               <h1 className="text-2xl font-extrabold tracking-wide" style={{ fontFamily: "'Georgia', serif" }}>{platformName}</h1>
@@ -3113,56 +3412,129 @@ export default function ManagerDashboardPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="rounded-lg px-4 py-2 text-sm font-semibold transition hover:bg-white/20" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff" }} onClick={logout}>Logout</button>
+          <div className="flex items-center gap-2 relative">
+            <button 
+              className="group relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-105 active:scale-95"
+              onClick={() => {
+                setShowNotifications(!showNotifications);
+                if (!showNotifications) markAllRead();
+              }}
+              title="Notifications"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg ring-2 ring-[#0d2760] animate-bounce">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <>
+                <div className="fixed inset-0 z-[99998]" onClick={() => setShowNotifications(false)} />
+                <div className="absolute right-0 top-12 z-[99999] w-80 overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-3">
+                    <h3 className="text-sm font-extrabold uppercase tracking-widest text-slate-500">Notifications</h3>
+                    <button onClick={clearHistory} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 uppercase tracking-tighter transition-colors">Clear All</button>
+                  </div>
+                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                    {history.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
+                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-300">
+                          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                          </svg>
+                        </div>
+                        <p className="text-sm font-bold text-slate-400">All caught up!</p>
+                        <p className="text-xs text-slate-300 mt-1">New activity will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-50">
+                        {history.map((n) => (
+                          <div key={n.id} className={`flex items-start gap-3 p-4 transition-colors hover:bg-slate-50 ${!n.read ? "bg-blue-50/30" : ""}`}>
+                            <div className={`mt-1 h-2 w-2 flex-shrink-0 rounded-full ${n.type === "success" ? "bg-emerald-500" : n.type === "error" ? "bg-rose-500" : "bg-blue-500"}`} />
+                            <div className="flex-grow min-w-0">
+                              <p className="text-xs font-bold text-slate-800 leading-normal line-clamp-3">{n.message}</p>
+                              <p className="mt-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{n.time}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="border-t border-slate-100 p-3 bg-slate-50/30">
+                    <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">History (Last 20 events)</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <div className="grid gap-0 lg:grid-cols-[260px_1fr]" style={{ minHeight: "calc(100vh - 67px)" }}>
-        <aside className="border-r border-blue-100/50 p-5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto" style={{ background: "rgba(219, 234, 254, 0.5)", backdropFilter: "blur(10px)" }}>
-          <div className="mb-5 pb-5" style={{ borderBottom: "1px solid rgba(30,64,175,0.15)" }}>
-            {(() => {
-              const sidebarRoleStyles = {
-                owner: { bg: "linear-gradient(135deg, #0a1a3e 0%, #1a3a8f 100%)", greet: "rgba(96,165,250,0.9)", badge: "rgba(96,165,250,0.2)", badgeText: "#93c5fd" },
-                manager: { bg: "linear-gradient(135deg, #0d2760 0%, #1d4ed8 100%)", greet: "rgba(147,197,253,0.9)", badge: "rgba(147,197,253,0.2)", badgeText: "#bfdbfe" },
-                hr: { bg: "linear-gradient(135deg, #1e3a5f 0%, #1565c0 100%)", greet: "rgba(165,216,255,0.9)", badge: "rgba(165,216,255,0.2)", badgeText: "#a5d8ff" },
-                employee: { bg: "linear-gradient(135deg, #1a3a6b 0%, #2563eb 100%)", greet: "rgba(191,219,254,0.9)", badge: "rgba(191,219,254,0.2)", badgeText: "#bfdbfe" },
-                client: { bg: "linear-gradient(135deg, #0c2340 0%, #1a4a8f 100%)", greet: "rgba(125,211,252,0.9)", badge: "rgba(125,211,252,0.2)", badgeText: "#7dd3fc" },
-              };
-              const s = sidebarRoleStyles[roleType] || sidebarRoleStyles.employee;
-              return (
-                <div className="rounded-xl px-4 py-3" style={{ background: s.bg }}>
-                  <p className="text-sm font-bold mb-0.5" style={{ color: s.greet }}>Hello!</p>
-                  <p className="font-extrabold text-white text-xl leading-tight" style={{ fontFamily: "'Georgia', serif" }}>{dashboardUserName}</p>
-                  <span className="inline-block mt-2 rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: s.badge, color: s.badgeText, letterSpacing: "0.06em" }}>{dashboardUserRole}</span>
-                </div>
-              );
-            })()}
+        <aside className="border-r border-blue-100/50 p-5 shadow-sm lg:sticky lg:top-0 lg:h-screen flex flex-col" style={{ background: "rgba(219, 234, 254, 0.5)", backdropFilter: "blur(10px)" }}>
+          <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+            <div className="mb-5 pb-5" style={{ borderBottom: "1px solid rgba(30,64,175,0.15)" }}>
+              {(() => {
+                const sidebarRoleStyles = {
+                  owner: { bg: "linear-gradient(135deg, #0a1a3e 0%, #1a3a8f 100%)", greet: "rgba(96,165,250,0.9)", badge: "rgba(96,165,250,0.2)", badgeText: "#93c5fd" },
+                  manager: { bg: "linear-gradient(135deg, #0d2760 0%, #1d4ed8 100%)", greet: "rgba(147,197,253,0.9)", badge: "rgba(147,197,253,0.2)", badgeText: "#bfdbfe" },
+                  hr: { bg: "linear-gradient(135deg, #1e3a5f 0%, #1565c0 100%)", greet: "rgba(165,216,255,0.9)", badge: "rgba(165,216,255,0.2)", badgeText: "#a5d8ff" },
+                  employee: { bg: "linear-gradient(135deg, #1a3a6b 0%, #2563eb 100%)", greet: "rgba(191,219,254,0.9)", badge: "rgba(191,219,254,0.2)", badgeText: "#bfdbfe" },
+                  client: { bg: "linear-gradient(135deg, #0c2340 0%, #1a4a8f 100%)", greet: "rgba(125,211,252,0.9)", badge: "rgba(125,211,252,0.2)", badgeText: "#7dd3fc" },
+                };
+                const s = sidebarRoleStyles[roleType] || sidebarRoleStyles.employee;
+                return (
+                  <div className="rounded-xl px-4 py-3" style={{ background: s.bg }}>
+                    <p className="text-sm font-bold mb-0.5" style={{ color: s.greet }}>Hello!</p>
+                    <p className="font-extrabold text-white text-xl leading-tight" style={{ fontFamily: "'Georgia', serif" }}>{dashboardUserName}</p>
+                    <span className="inline-block mt-2 rounded-full px-2.5 py-0.5 text-xs font-bold" style={{ background: s.badge, color: s.badgeText, letterSpacing: "0.06em" }}>{dashboardUserRole}</span>
+                  </div>
+                );
+              })()}
+            </div>
+            <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-blue-900/40">Navigation</p>
+            <div className="space-y-1.5">
+              {menus.map((item) => (
+                <button
+                  key={item.id}
+                  className="w-full rounded-lg px-4 py-3 text-left text-sm font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  style={activeMenu === item.id ? {
+                    background: "linear-gradient(135deg, #1e3a8a, #1d4ed8)",
+                    color: "#fff",
+                    boxShadow: "0 2px 8px rgba(30,58,138,0.3)",
+                    borderLeft: "3px solid #60a5fa"
+                  } : {
+                    color: "#1e3a8a",
+                    background: "transparent",
+                    borderLeft: "3px solid transparent"
+                  }}
+                  onMouseEnter={(e) => { if (activeMenu !== item.id) { e.currentTarget.style.background = "rgba(30,58,138,0.08)"; e.currentTarget.style.borderLeft = "3px solid #93c5fd"; } }}
+                  onMouseLeave={(e) => { if (activeMenu !== item.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "3px solid transparent"; } }}
+                  onClick={() => { setActiveMenu(item.id); persistActiveMenu(item.id); }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-blue-900/40">Navigation</p>
-          <div className="space-y-1.5">
-            {menus.map((item) => (
-              <button
-                key={item.id}
-                className="w-full rounded-lg px-4 py-3 text-left text-sm font-bold transition-all"
-                style={activeMenu === item.id ? {
-                  background: "linear-gradient(135deg, #1e3a8a, #1d4ed8)",
-                  color: "#fff",
-                  boxShadow: "0 2px 8px rgba(30,58,138,0.3)",
-                  borderLeft: "3px solid #60a5fa"
-                } : {
-                  color: "#1e3a8a",
-                  background: "transparent",
-                  borderLeft: "3px solid transparent"
-                }}
-                onMouseEnter={(e) => { if (activeMenu !== item.id) { e.currentTarget.style.background = "rgba(30,58,138,0.08)"; e.currentTarget.style.borderLeft = "3px solid #93c5fd"; } }}
-                onMouseLeave={(e) => { if (activeMenu !== item.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderLeft = "3px solid transparent"; } }}
-                onClick={() => { setActiveMenu(item.id); persistActiveMenu(item.id); }}
-              >
-                {item.label}
-              </button>
-            ))}
+
+          <div className="mt-auto pt-6 border-t border-blue-900/10">
+            <button
+              className="w-full flex items-center justify-center gap-3 rounded-xl py-3 text-sm font-bold text-rose-600 transition-all duration-300 hover:bg-rose-50 hover:shadow-sm active:scale-95 group"
+              onClick={() => {
+                showToast("Logged out successfully", "info");
+                logout();
+              }}
+            >
+              <svg className="h-5 w-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
           </div>
         </aside>
 
@@ -3199,19 +3571,37 @@ export default function ManagerDashboardPage() {
                     <span className="inline-flex mt-1 rounded-full px-3 py-0.5 text-xs font-bold" style={{ background: cfg.badge, color: cfg.accent, border: `1px solid ${cfg.accent}40` }}>
                       {dashboardUserRole}
                     </span>
+                    {/* Static notifications replaced by Toast system */}
+                    {inviteLink ? (
+                      <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/50 p-4 text-sm text-blue-900 shadow-sm backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </span>
+                          <p className="font-bold uppercase tracking-widest text-[10px]">Invite Set-Password Link</p>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 rounded-lg bg-white/80 p-3 border border-blue-100">
+                          <a href={inviteLink} className="break-all font-mono text-xs text-blue-800 hover:underline" target="_blank" rel="noreferrer">{inviteLink}</a>
+                          <button 
+                            onClick={() => { navigator.clipboard.writeText(inviteLink); showToast("Link copied!", "info"); }}
+                            className="flex-shrink-0 text-blue-600 hover:text-blue-800 font-bold text-xs uppercase"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
             );
           })()}
-          {errorText ? <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{errorText}</p> : null}
-          {noticeText ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{noticeText}</p> : null}
-          {inviteLink ? (
-            <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
-              <p className="font-semibold">Invite Set-Password Link</p>
-              <a href={inviteLink} className="break-all font-medium underline" target="_blank" rel="noreferrer">{inviteLink}</a>
-            </div>
-          ) : null}
+
+          {/* ========================================================================= */}
+          {/*                          OWNER / ADMIN DASHBOARD                          */}
+          {/* ========================================================================= */}
           {activeMenu === "owner-dashboard" ? (
             <>
               <SectionTitle title="Owner Overview" />
@@ -3226,119 +3616,62 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Overdue" value={ownerOverview.overdue_tasks} accent="#dc2626" />
               </div>
               <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe", borderTop: "3px solid #2563eb" }}>
-                <SectionTitle title="All Tasks" />
+                <SectionTitle 
+                  title="All Tasks" 
+                  action={
+                    permissions.can_assign_task && (
+                      <button 
+                        onClick={() => setShowCreateTaskModal(true)}
+                        className="btn-primary !py-2 !px-4 text-xs"
+                      >
+                        New Task
+                      </button>
+                    )
+                  }
+                />
                 <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
           ) : null}
 
+
+          {/* ========================== ROLES MANAGEMENT ========================== */}
           {activeMenu === "owner-roles" || activeMenu === "manager-roles" || activeMenu === "hr-roles" ? (
             <>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Role" />
-                <form className="space-y-3" onSubmit={submitCreateRole}>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Company</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
-                        <option value="">Select company</option>
-                        {companyOptions.map((companyOption) => (
-                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {ROLE_PERMISSION_FIELDS.map((field) => (
-                      <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
-                        <input type="checkbox" checked={Boolean(createRoleForm[field])} onChange={(e) => setCreateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
-                        <span>{field}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Edit Role" />
-                <form className="space-y-3" onSubmit={submitUpdateRole}>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Role</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.role_id} onChange={(e) => handleUpdateRoleSelection(e.target.value)} required>
-                        <option value="">Select role</option>
-                        {roles.map((role) => (
-                          <option key={role.id} value={role.id}>{role?.name || role?.slug || `Role ${role.id}`}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Company</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.company} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
-                        <option value="">Select company</option>
-                        {companyOptions.map((companyOption) => (
-                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {ROLE_PERMISSION_FIELDS.map((field) => (
-                      <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
-                        <input type="checkbox" checked={Boolean(updateRoleForm[field])} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
-                        <span>{field}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Role"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Role List" />
+                <SectionTitle 
+                  title="Role Management" 
+                  action={
+                    <button 
+                      onClick={() => setShowAddRoleModal(true)}
+                      className="btn-primary !py-2 !px-4 text-xs"
+                    >
+                      Add Role
+                    </button>
+                  }
+                />
                 <DataTable columns={roleColumns} rows={roles} emptyText="No roles" />
               </section>
             </>
           ) : null}
 
+
+          {/* ========================== USERS MANAGEMENT ========================== */}
           {activeMenu === "owner-users" ? (
-            <>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New User" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Company</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
-                      <option value="">Select company</option>
-                      {companyOptions.map((companyOption) => (
-                        <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Role</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
-                      <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
-                      {createUserRoleOptions.map((roleOption) => (
-                        <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" />
-                <DataTable columns={userListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
-              </section>
-            </>
+            <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+              <SectionTitle 
+                title="User List" 
+                action={
+                  <button 
+                    onClick={() => setShowAddUserModal(true)}
+                    className="btn-primary !py-2 !px-4 text-xs"
+                  >
+                    Add User
+                  </button>
+                }
+              />
+              <DataTable columns={userListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
+            </section>
           ) : null}
 
           {activeMenu === "manager-users" ? (
@@ -3350,38 +3683,23 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Employees" value={managerUserMetrics.employees} />
               </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New User" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Company</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
-                      <option value="">Select company</option>
-                      {companyOptions.map((companyOption) => (
-                        <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Role</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
-                      <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
-                      {createUserRoleOptions.map((roleOption) => (
-                        <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
-                </form>
-              </section>
-              
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" />
+                <SectionTitle 
+                  title="User List" 
+                  action={
+                    <button 
+                      onClick={() => setShowAddUserModal(true)}
+                      className="btn-primary !py-2 !px-4 text-xs"
+                    >
+                      Add User
+                    </button>
+                  }
+                />
                 <DataTable columns={managerUserListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
             </>
           ) : null}
+
+          {/* ========================= PROJECTS MANAGEMENT ======================== */}
           {activeMenu === "owner-projects" ? (
             <>
               <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -3391,51 +3709,26 @@ export default function ManagerDashboardPage() {
                 <StatCard label="On Hold" value={ownerProjectMetrics.on_hold_projects} />
               </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Project" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="All Projects" />
+                <SectionTitle 
+                  title="Project List" 
+                  action={
+                    <button 
+                      onClick={() => setShowAddProjectModal(true)}
+                      className="btn-primary !py-2 !px-4 text-xs"
+                    >
+                      New Project
+                    </button>
+                  }
+                />
                 <DataTable columns={managerProjectColumns} rows={ownerProjectsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
             </>
           ) : null}
+
+          {/* =========================== TASKS MANAGEMENT ========================= */}
           {activeMenu === "owner-tasks" ? (
             <>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Task" />
-                {permissions.can_assign_task ? (
-                  <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
-                    <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Save Task"}</button>
-                  </form>
-                ) : (
-                  <p className="text-sm text-slate-500">You do not have permission to create tasks.</p>
-                )}
-              </section>
+              
               <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <StatCard label="Total Tasks" value={ownerTaskMetrics.total_tasks} />
                 <StatCard label="Completed" value={ownerTaskMetrics.completed_tasks} />
@@ -3443,7 +3736,19 @@ export default function ManagerDashboardPage() {
               </section>
               {renderTaskProgressSection()}
               <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe", borderTop: "3px solid #2563eb" }}>
-                <SectionTitle title="All Tasks" />
+                <SectionTitle 
+                  title="All Tasks" 
+                  action={
+                    permissions.can_assign_task && (
+                      <button 
+                        onClick={() => setShowCreateTaskModal(true)}
+                        className="btn-primary !py-2 !px-4 text-xs"
+                      >
+                        New Task
+                      </button>
+                    )
+                  }
+                />
                 <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
@@ -3466,6 +3771,10 @@ export default function ManagerDashboardPage() {
             </section>
           ) : null}
 
+
+          {/* ========================================================================= */}
+          {/*                           MANAGER DASHBOARD                               */}
+          {/* ========================================================================= */}
           {activeMenu === "manager-dashboard" ? (
             <>
               {/* Scorecard strip */}
@@ -3546,24 +3855,17 @@ export default function ManagerDashboardPage() {
                 <StatCard label="On Hold" value={managerProjectMetrics.on_hold_projects} />
               </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Project" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Project List" />
+                <SectionTitle 
+                  title="Project List" 
+                  action={
+                    <button 
+                      onClick={() => setShowAddProjectModal(true)}
+                      className="btn-primary !py-2 !px-4 text-xs"
+                    >
+                      New Project
+                    </button>
+                  }
+                />
                 <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
               </section>
             </>
@@ -3575,29 +3877,17 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerTaskMetrics.completed_tasks} />
                 <StatCard label="Overdue" value={managerTaskMetrics.overdue_tasks} />
               </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Task" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>Save Task</button>
-                </form>
-              </section>
+              
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <SectionTitle title="Task List" />
                 <DataTable columns={dashboardTaskListColumns} rows={managerVisibleTaskRows} emptyText="No tasks" onRowClick={openTaskDetails} />
               </section>
             </>
           ) : null}
+
+          {/* ========================================================================= */}
+          {/*                          EMPLOYEE DASHBOARD                               */}
+          {/* ========================================================================= */}
           {activeMenu === "employee-dashboard" ? (
             <>
               {/* Personal progress banner */}
@@ -3667,6 +3957,10 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "employee-attendance" || activeMenu === "manager-attendance" ? renderAttendanceAndLeaveSections() : null}
 
+
+          {/* ========================================================================= */}
+          {/*                              HR DASHBOARD                                 */}
+          {/* ========================================================================= */}
           {activeMenu === "hr-dashboard" ? (
             <>
               {/* HR Command strip */}
@@ -3695,7 +3989,6 @@ export default function ManagerDashboardPage() {
                     {[
                       { label: "Present", value: hrOverview.attendance?.present, color: "#16a34a" },
                       { label: "Absent", value: hrOverview.attendance?.absent, color: "#dc2626" },
-                      { label: "Half Day", value: hrOverview.attendance?.half_day, color: "#d97706" },
                       { label: "On Leave", value: hrOverview.attendance?.on_leave, color: "#0891b2" },
                     ].map((item) => (
                       <article key={item.label} className="rounded-lg bg-white p-3 shadow-sm" style={{ border: "1px solid #e0eaff", borderLeft: `3px solid ${item.color}`, position: "relative", overflow: "hidden" }}>
@@ -3772,7 +4065,33 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "hr-attendance" ? (
             <>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <SectionTitle title="Employee Calendar" />
+                  <select 
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200 bg-slate-50"
+                    value={hrCalendarUserId}
+                    onChange={(e) => setHrCalendarUserId(e.target.value)}
+                  >
+                    <option value="">Select employee...</option>
+                    {hrEmployeeRows.map((emp) => (
+                      <option key={emp.id} value={emp.id}>{getUserDisplayName(emp)}</option>
+                    ))}
+                  </select>
+                </div>
+                {hrCalendarUserId ? (
+                  <AttendanceCalendar 
+                    attendanceRecords={attendanceRecords.filter(r => getLinkedCompanyUserId(r) === String(hrCalendarUserId))}
+                    leaveRecords={hrLeaves.filter(l => getLinkedCompanyUserId(l) === String(hrCalendarUserId))}
+                  />
+                ) : (
+                  <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    Select an employee from the dropdown above to view their attendance calendar.
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm mb-6">
                 <SectionTitle title="Attendance List" />
                 <DataTable columns={hrAttendanceColumns} rows={attendanceRecords} emptyText="No attendance records" />
               </section>
@@ -3836,6 +4155,10 @@ export default function ManagerDashboardPage() {
             </>
           ) : null}
 
+
+          {/* ========================================================================= */}
+          {/*                             CLIENT DASHBOARD                              */}
+          {/* ========================================================================= */}
           {activeMenu === "client-dashboard" ? (
             <>
               {/* Client portfolio header */}
@@ -3911,7 +4234,462 @@ export default function ManagerDashboardPage() {
           ) : null}
         </section>
       </div>
+      {AddUserModal()}
+      {EditUserModal()}
+      {AddRoleModal()}
+      {EditRoleModal()}
+      {CreateTaskModal()}
+      {AddProjectModal()}
     </main>
   );
+
+  function AddUserModal() {
+    return (
+      <Modal isOpen={showAddUserModal} onClose={() => setShowAddUserModal(false)} title="Add New User">
+        <form className="grid gap-4" onSubmit={submitCreateUser}>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Company</span>
+            <select 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={createUserForm.company_id} 
+              onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} 
+              required
+            >
+              <option value="">Select company</option>
+              {companyOptions.map((companyOption) => (
+                <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">First Name</span>
+            <input 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={createUserForm.first_name} 
+              onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} 
+              required 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Email</span>
+            <input 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              type="email" 
+              value={createUserForm.email} 
+              onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} 
+              required 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Role</span>
+            <select 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={createUserForm.role_id} 
+              onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} 
+              disabled={!createUserRoleOptions.length} 
+              required
+            >
+              <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
+              {createUserRoleOptions.map((roleOption) => (
+                <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowAddUserModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button 
+              type="submit" 
+              className="flex-[2] btn-primary py-3" 
+              disabled={busyKey === "create-user" || !createUserRoleOptions.length}
+            >
+              {busyKey === "create-user" ? "Inviting..." : "Invite User"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  function AddRoleModal() {
+    return (
+      <Modal isOpen={showAddRoleModal} onClose={() => setShowAddRoleModal(false)} title="Add New Role">
+        <form className="grid gap-4" onSubmit={submitCreateRole}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="space-y-1.5 text-sm text-slate-700">
+              <span className="font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Company</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                <option value="">Select company</option>
+                {companyOptions.map((companyOption) => (
+                  <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5 text-sm text-slate-700">
+              <span className="font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Name</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required />
+            </label>
+            <label className="space-y-1.5 text-sm text-slate-700">
+              <span className="font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Slug</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} />
+            </label>
+            <label className="space-y-1.5 text-sm text-slate-700">
+              <span className="font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Level</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required />
+            </label>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+            {ROLE_PERMISSION_FIELDS.map((field) => (
+              <label key={field} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100">
+                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={Boolean(createRoleForm[field])} onChange={(e) => setCreateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
+                <span>{formatPermissionLabel(field)}</span>
+              </label>
+            ))}
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowAddRoleModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  function EditRoleModal() {
+    return (
+      <Modal isOpen={showEditRoleModal} onClose={() => setShowEditRoleModal(false)} title="Edit Role">
+        <form className="grid gap-4" onSubmit={submitUpdateRole}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Company</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={updateRoleForm.company} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                <option value="">Select company</option>
+                {companyOptions.map((companyOption) => (
+                  <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Name</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Slug</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Level</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required />
+            </div>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+            {ROLE_PERMISSION_FIELDS.map((field) => (
+              <label key={field} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-100">
+                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={Boolean(updateRoleForm[field])} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
+                <span>{formatPermissionLabel(field)}</span>
+              </label>
+            ))}
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowEditRoleModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Changes"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  function EditUserModal() {
+    return (
+      <Modal isOpen={showEditUserModal} onClose={() => setShowEditUserModal(false)} title="Edit User">
+        <form className="grid gap-4" onSubmit={submitUpdateUser}>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Name</span>
+            <input 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={updateUserForm.name} 
+              onChange={(e) => setUpdateUserForm((s) => ({ ...s, name: e.target.value }))} 
+              required 
+            />
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Role</span>
+            <select 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={updateUserForm.role} 
+              onChange={(e) => setUpdateUserForm((s) => ({ ...s, role: e.target.value }))} 
+              required
+            >
+              <option value="">Select role</option>
+              {roles.map((role) => (
+                <option key={role.id} value={role.id}>{role.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Status</span>
+            <select 
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" 
+              value={updateUserForm.status} 
+              onChange={(e) => setUpdateUserForm((s) => ({ ...s, status: e.target.value }))} 
+              required
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowEditUserModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button 
+              type="submit" 
+              className="flex-[2] btn-primary py-3" 
+              disabled={busyKey === `update-user-${updateUserForm.user_id}`}
+            >
+              {busyKey === `update-user-${updateUserForm.user_id}` ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+
+  function CreateTaskModal() {
+    return (
+      <Modal isOpen={showCreateTaskModal} onClose={() => setShowCreateTaskModal(false)} title="Create New Task">
+        <form className="grid gap-4" onSubmit={submitCreateTask}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Title</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Assign To</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required>
+                <option value="">Select employee</option>
+                {createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Project</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}>
+                <option value="">None (No Project)</option>
+                {createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Due Date</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Status</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}>
+                <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Priority</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}>
+                <option>LOW</option>
+                <option>MEDIUM</option>
+                <option>HIGH</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Progress</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Reference Link</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} />
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Attachment</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Image</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} />
+            </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Description</span>
+              <textarea className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all min-h-[100px]" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required />
+            </div>
+          </div>
+          
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowCreateTaskModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Create Task"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+
+  function CreateTaskModal() {
+    return (
+      <Modal isOpen={showCreateTaskModal} onClose={() => setShowCreateTaskModal(false)} title="Create New Task">
+        <form className="grid gap-4" onSubmit={submitCreateTask}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Title</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Assign To</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required>
+                <option value="">Select employee</option>
+                {createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Project</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}>
+                <option value="">None (No Project)</option>
+                {createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Due Date</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Status</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}>
+                <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Priority</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}>
+                <option>LOW</option>
+                <option>MEDIUM</option>
+                <option>HIGH</option>
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Progress</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required />
+            </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Reference Link</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} />
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Attachment</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} />
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Image</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} />
+            </div>
+            
+            <div className="space-y-1.5 md:col-span-2">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Description</span>
+              <textarea className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all min-h-[100px]" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required />
+            </div>
+          </div>
+          
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowCreateTaskModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Create Task"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  function AddProjectModal() {
+    return (
+      <Modal isOpen={showAddProjectModal} onClose={() => setShowAddProjectModal(false)} title="Create New Project">
+        <form className="grid gap-4" onSubmit={submitCreateProject}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Project Name</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Manager</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}>
+                <option value="">Select manager</option>
+                {managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Client</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}>
+                <option value="">Select client</option>
+                {clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Status</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}>
+                <option value="ACTIVE">Active</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="ON_HOLD">On Hold</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Priority</span>
+              <select className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}>
+                <option>LOW</option>
+                <option>MEDIUM</option>
+                <option>HIGH</option>
+                <option>CRITICAL</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Start Date</span>
+              <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">End Date</span>
+              <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Budget</span>
+              <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <span className="block text-sm font-bold text-blue-900/60 uppercase tracking-wider text-[10px]">Description</span>
+            <textarea className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all min-h-24" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} />
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+            <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> 
+            <span>Project is Active</span>
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setShowAddProjectModal(false)} className="flex-1 rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-all">Cancel</button>
+            <button type="submit" className="flex-[2] btn-primary py-3" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Create Project"}</button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
 }
 

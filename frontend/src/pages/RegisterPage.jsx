@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { postData } from "../lib/api";
+import { postData, getErrorMessage } from "../lib/api";
+import { useToast } from "../components/Toast/ToastContext";
 import logo from "./logo.png";
 
 const defaultPayload = {
@@ -16,6 +17,7 @@ const FEATURES = [
 ];
 
 export default function RegisterPage() {
+  const { showToast } = useToast();
   const [form, setForm] = useState(defaultPayload);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,8 +29,11 @@ export default function RegisterPage() {
     try {
       const res = await postData("/register/", form);
       setForm(defaultPayload);
+      showToast("Company registered successfully! Please login.", "success");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      const msg = getErrorMessage(err);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -152,7 +157,7 @@ export default function RegisterPage() {
           </div>
 
           <button
-            className="w-full py-3 text-sm font-semibold text-white rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full py-3 text-sm font-semibold text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", boxShadow: "0 4px 14px rgba(37,99,235,.35)" }}
             disabled={loading}
           >

@@ -36,7 +36,7 @@ export default function SetPasswordPage() {
       setPassword("");
       setConfirmPassword("");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }
@@ -96,4 +96,30 @@ export default function SetPasswordPage() {
       </form>
     </main>
   );
+}
+
+function extractError(err) {
+  if (err?.response?.data) {
+    const data = err.response.data;
+    if (typeof data === "string") return data;
+
+    // Check for nested messages (common in some token/auth errors)
+    if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+      const firstMsg = data.messages[0];
+      if (firstMsg?.message) return firstMsg.message;
+    }
+
+    if (data?.detail && typeof data.detail === "string") return data.detail;
+
+    // If it's an object, try to find the first error message
+    if (typeof data === "object") {
+      const firstKey = Object.keys(data)[0];
+      const firstVal = data[firstKey];
+      if (Array.isArray(firstVal)) return firstVal[0];
+      if (typeof firstVal === "string") return firstVal;
+    }
+
+    return JSON.stringify(data);
+  }
+  return err?.message || "Request failed";
 }

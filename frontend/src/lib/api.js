@@ -102,4 +102,46 @@ export async function deleteData(url) {
   return data;
 }
 
+/**
+ * Extracts a user-friendly error message from an Axios error object.
+ * Handles Django Rest Framework error formats:
+ * - { detail: "message" }
+ * - { non_field_errors: ["message"] }
+ * - { field_name: ["message"] }
+ */
+export function getErrorMessage(err) {
+  const data = err?.response?.data;
+  if (!data) return err.message || "An unexpected error occurred";
+
+  if (typeof data === "string") return data;
+
+  if (data.detail && typeof data.detail === "string") return data.detail;
+  
+  if (data.non_field_errors) {
+    return Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : data.non_field_errors;
+  }
+
+  // Handle nested messages (common in some token/auth errors)
+  if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+    const firstMsg = data.messages[0];
+    if (firstMsg?.message) return firstMsg.message;
+  }
+
+  // Handle field errors (e.g. {"email": ["This field is required."]})
+  if (typeof data === "object") {
+    const firstKey = Object.keys(data)[0];
+    const error = data[firstKey];
+    if (error) {
+      const msg = Array.isArray(error) ? error[0] : error;
+      if (typeof msg === "string") {
+        // If it's a field error, optionally prefix with field name
+        const prefix = firstKey !== "error" && firstKey !== "message" ? `${firstKey.replace(/_/g, ' ')}: ` : "";
+        return (prefix + msg).charAt(0).toUpperCase() + (prefix + msg).slice(1);
+      }
+    }
+  }
+
+  return JSON.stringify(data);
+}
+
 export default api;

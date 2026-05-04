@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { postData } from "../lib/api";
+import { postData, getErrorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { useToast } from "../components/Toast/ToastContext";
 import logo from "./logo.png";
 
 const FEATURES = [
@@ -13,6 +14,7 @@ const FEATURES = [
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { showToast } = useToast();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,13 +26,12 @@ export default function LoginPage() {
     try {
       const res = await postData("/login/", form);
       login(res);
+      showToast("Welcome back!", "success");
       navigate("/");
     } catch (err) {
-      setError(
-        err?.response?.data?.detail ||
-        JSON.stringify(err?.response?.data) ||
-        err.message
-      );
+      const msg = getErrorMessage(err);
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -134,7 +135,7 @@ export default function LoginPage() {
           </div>
 
           <button
-            className="w-full py-3 text-sm font-semibold text-white rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full py-3 text-sm font-semibold text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: "linear-gradient(135deg,#2563eb,#1d4ed8)", boxShadow: "0 4px 14px rgba(37,99,235,.35)" }}
             disabled={loading}
           >
