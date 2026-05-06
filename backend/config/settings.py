@@ -59,7 +59,8 @@ INSTALLED_APPS = [
     'companies',
     'hr',
     'cloudinary',
-    'cloudinary_storage'
+    'cloudinary_storage',
+    'chatbot'
 ]
 
 MIDDLEWARE = [
