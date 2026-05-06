@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
+import ChatbotBubble from "./components/ChatbotBubble";
 
 const ManagerDashboardPage = lazy(() => import("./pages/ManagerDashboardPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -33,7 +34,7 @@ export default function App() {
           {/* Public homepage */}
           <Route path="/" element={<GuestRoute><HomePage /></GuestRoute>} />
 
-          {/* Auth pages — redirect to dashboard if already logged in */}
+          {/* Auth pages */}
           <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
           <Route path="/set-password/:token" element={<SetPasswordPage />} />
@@ -48,6 +49,9 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+
+      {/* Chatbot bubble — shows on every page */}
+      <ChatbotBubble />
     </AuthProvider>
   );
 }
