@@ -38,7 +38,7 @@ export default function ChatbotBubble() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/chat`, {
+      const res = await fetch(`${API_BASE}/chatbot/chat/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, user_role: getUserRole() }),
