@@ -6,6 +6,7 @@ import { deleteData, getData, patchData, postData, putData } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import logo from "./logo.png";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
+import NotificationBell from "../components/NotificationBell";
 
 const MENUS = {
   owner: [
@@ -3101,7 +3102,7 @@ export default function ManagerDashboardPage() {
 
   return (
     <main className="min-h-screen" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
-      <header className="mb-0 overflow-hidden text-white shadow-xl" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7", position: "relative" }}>
+      <header className="mb-0 text-white shadow-xl" style={{ background: "linear-gradient(135deg, #0a1a3e 0%, #0d2760 50%, #1a3a8f 100%)", borderBottom: "3px solid #1e4db7", position: "relative" }}>
         <div style={{ position: "absolute", top: -25, right: 80, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: 8, right: 30, width: 55, height: 55, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -15, left: 300, width: 70, height: 70, borderRadius: "50%", background: "rgba(30,77,183,0.2)", pointerEvents: "none" }} />
@@ -3119,8 +3120,26 @@ export default function ManagerDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="rounded-lg px-4 py-2 text-sm font-semibold transition hover:bg-white/20" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff" }} onClick={logout}>Logout</button>
-          </div>
+  <NotificationBell
+  users={users.length ? users : teamMembers}
+  projects={
+    roleType === "owner" ? ownerProjects :
+    roleType === "manager" ? managerProjects :
+    roleType === "client" ? clientProjects :
+    roleType === "employee" ? employeeProjects :
+    
+    []
+  }
+  tasks={
+    roleType === "owner" ? ownerTasks :
+    roleType === "manager" ? managerAllTasks :
+    roleType === "employee" ? employeeTasks :
+    roleType === "hr" ? [] :
+    []
+  }
+/>
+</div>
+          
         </div>
       </header>
 
@@ -3168,6 +3187,15 @@ export default function ManagerDashboardPage() {
                 {item.label}
               </button>
             ))}
+          </div>
+        <div className="mt-auto pt-4" style={{ borderTop: "1px solid rgba(30,64,175,0.15)" }}>
+            <button
+              className="w-full rounded-lg px-4 py-3 text-left text-sm font-bold transition-all"
+              style={{ color: "#2651dc", borderLeft: "3px solid #2651dc" }}
+              onClick={logout}
+            >
+               Logout
+            </button>
           </div>
         </aside>
 
